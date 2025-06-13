@@ -1,0 +1,39 @@
+{
+  "name": "color-palette-frontend",
+  "version": "1.0.0",
+  "description": "Vue/Nuxt frontend for Color Palette Tool",
+  "private": true,
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage"
+  },
+  "devDependencies": {
+    "@nuxt/devtools": "latest",
+    "@nuxt/test-utils": "^3.8.0",
+    "@vue/test-utils": "^2.4.0",
+    "nuxt": "^3.8.0",
+    "vitest": "^0.34.0",
+    "@vitest/ui": "^0.34.0",
+    "c8": "^8.0.0",
+    "happy-dom": "^12.0.0"
+  },
+  "dependencies": {
+    "@nuxtjs/tailwindcss": "^6.8.0",
+    "@pinia/nuxt": "^0.5.0",
+    "pinia": "^2.1.0",
+    "@vueuse/nuxt": "^10.5.0",
+    "axios": "^1.6.0",
+    "vue-toastification": "^2.0.0-rc.5",
+    "@headlessui/vue": "^1.7.0",
+    "@heroicons/vue": "^2.0.0",
+    "vue-color-kit": "^1.0.5",
+    "file-saver": "^2.0.5",
+    "@types/file-saver": "^2.0.7"
+  }
+}
