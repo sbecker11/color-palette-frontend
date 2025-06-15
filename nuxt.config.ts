@@ -16,22 +16,35 @@ export default defineNuxtConfig({
     }
   },
 
-  // Auto-import components
+  // Auto-import components - updated configuration
   components: [
     {
-      path: '~/components',
-      pathPrefix: false,
+      path: '~/components/ui',
+      prefix: 'Ui',
+      global: true,
     },
+    {
+      path: '~/components',
+      global: true,
+    }
+  ],
+
+  // Plugin configuration
+  plugins: [
+    '~/plugins/api.ts',
+    '~/plugins/component-registration.ts',
+    '~/plugins/manual-component-registration.ts'
   ],
 
   // Build configuration
   build: {
-    transpile: ['vue-toastification']
+    transpile: ['vue-toastification', 'estree-walker']
   },
 
   // Development server configuration
   devServer: {
-    port: 3000
+    port: 3000,
+    host: 'localhost'
   },
 
   // TypeScript configuration
@@ -40,8 +53,40 @@ export default defineNuxtConfig({
     typeCheck: true
   },
 
-  // Vitest configuration for testing
-  vitest: {
-    environment: 'happy-dom'
+  // Vite configuration
+  vite: {
+    optimizeDeps: {
+      include: ['estree-walker'],
+      exclude: []
+    },
+    resolve: {
+      dedupe: ['vue'],
+      alias: {
+        'estree-walker': './resolve-estree-walker.js'
+      }
+    },
+    define: {
+      // Enable detailed hydration mismatch warnings in development
+      '__VUE_PROD_HYDRATION_MISMATCH_DETAILS__': 'true'
+    },
+    server: {
+      hmr: {
+        protocol: 'ws',
+        host: 'localhost',
+        port: 3000
+      }
+    }
+  },
+
+  // Vue compiler options
+  vue: {
+    compilerOptions: {
+      isCustomElement: (tag) => tag.includes('-') && !tag.startsWith('ui-')
+    }
+  },
+  
+  // Nitro configuration
+  nitro: {
+    compatibilityDate: '2025-06-14'
   }
 })

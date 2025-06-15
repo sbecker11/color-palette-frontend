@@ -1,39 +1,38 @@
+// Define the API client interface
+export interface ApiClient {
+  get<T>(endpoint: string, params?: Record<string, any>): Promise<T>;
+  post<T>(endpoint: string, data?: any): Promise<T>;
+  put<T>(endpoint: string, data?: any): Promise<T>;
+  delete<T>(endpoint: string): Promise<T>;
+  checkAvailability(): Promise<boolean>;
+  isAvailable(): boolean;
+  isUsingMockData(): boolean;
+}
+
+// Define pagination parameters
+export interface PaginationParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}
+
+// Define the API response types
 export interface ApiResponse<T = any> {
-  data?: T
-  message?: string
-  error?: string
-  details?: string[]
+  data: T;
+  meta?: {
+    pagination?: {
+      total: number;
+      per_page: number;
+      current_page: number;
+      total_pages: number;
+    }
+  };
 }
 
-export interface PaginatedResponse<T> {
-  [key: string]: T[] | PaginationMeta
-  meta: PaginationMeta
-}
-
-export interface PaginationMeta {
-  current_page: number
-  per_page: number
-  total_pages: number
-  total_count: number
-}
-
-export interface ApiError {
-  error: string
-  message: string
-  details?: string[]
-  status?: number
-}
-
-export interface UploadProgress {
-  loaded: number
-  total: number
-  percentage: number
-}
-
-export interface ApiRequestOptions {
-  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
-  body?: any
-  headers?: Record<string, string>
-  params?: Record<string, string | number>
-  onUploadProgress?: (progress: UploadProgress) => void
+export interface ErrorResponse {
+  error: string;
+  status: number;
+  message: string;
 }

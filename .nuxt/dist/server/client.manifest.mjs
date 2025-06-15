@@ -1,0 +1,1 @@
+export { default } from "file:///Users/sbecker11/color-palette-app/color-palette-frontend/node_modules/@nuxt/vite-builder/dist/runtime/client.manifest.mjs"

@@ -1,19 +1,29 @@
 export interface Image {
   id: string
   name: string
-  url?: string
-  file_path?: string
+  url: string
+  thumbnailUrl?: string
+  createdAt: string
+  updatedAt: string
   width?: number
   height?: number
-  content_type?: string
-  file_size?: number
-  description?: string
-  created_at: string
-  updated_at: string
-  image_dimensions?: string
-  file_size_human?: string
-  has_image: boolean
-  palette_count: number
+  fileSize?: number
+  fileType?: string
+}
+
+export interface ImageUploadResponse {
+  id: string
+  name: string
+  url: string
+  thumbnailUrl?: string
+  createdAt: string
+}
+
+export interface ImageListResponse {
+  images: Image[]
+  total: number
+  page: number
+  limit: number
 }
 
 export interface ImageCreatePayload {

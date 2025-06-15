@@ -8,32 +8,48 @@
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare",
+    "postinstall": "nuxt prepare && npm run fix-estree-walker && npm run fix-ultrahtml",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "test:coverage": "vitest --coverage"
+    "test:coverage": "vitest --coverage",
+    "fix-estree-walker": "node scripts/fix-estree-walker.js",
+    "fix-ultrahtml": "node scripts/fix-ultrahtml.js",
+    "restart": "node scripts/restart-dev.js"
   },
   "devDependencies": {
     "@nuxt/devtools": "latest",
     "@nuxt/test-utils": "^3.8.0",
+    "@tailwindcss/forms": "^0.5.10",
+    "@tailwindcss/typography": "^0.5.16",
+    "@vitest/ui": "^3.2.3",
     "@vue/test-utils": "^2.4.0",
-    "nuxt": "^3.8.0",
-    "vitest": "^0.34.0",
-    "@vitest/ui": "^0.34.0",
     "c8": "^8.0.0",
-    "happy-dom": "^12.0.0"
+    "happy-dom": "^17.6.3",
+    "nuxt": "^3.17.5",
+    "vitest": "^3.2.3",
+    "vue-tsc": "^2.2.10"
   },
   "dependencies": {
-    "@nuxtjs/tailwindcss": "^6.8.0",
-    "@pinia/nuxt": "^0.5.0",
-    "pinia": "^2.1.0",
-    "@vueuse/nuxt": "^10.5.0",
-    "axios": "^1.6.0",
-    "vue-toastification": "^2.0.0-rc.5",
     "@headlessui/vue": "^1.7.0",
     "@heroicons/vue": "^2.0.0",
-    "vue-color-kit": "^1.0.5",
+    "@nuxtjs/tailwindcss": "^6.8.0",
+    "@pinia/nuxt": "^0.5.0",
+    "@types/file-saver": "^2.0.7",
+    "@vueuse/nuxt": "^10.5.0",
+    "axios": "^1.6.0",
+    "estree-walker": "^3.0.3",
     "file-saver": "^2.0.5",
-    "@types/file-saver": "^2.0.7"
+    "pinia": "^2.1.0",
+    "vue-color-kit": "^1.0.5",
+    "vue-toastification": "^2.0.0-rc.5"
+  },
+  "resolutions": {
+    "estree-walker": "^3.0.3",
+    "happy-dom": "^17.6.3",
+    "ultrahtml": "^1.5.3"
+  },
+  "overrides": {
+    "happy-dom": "^17.6.3",
+    "ultrahtml": "^1.5.3"
   }
 }
