@@ -138,7 +138,7 @@ const totalPages = computed(() => {
 // Function to change page
 const changePage = async (page: number) => {
   try {
-    await imagesStore.fetchImages({ page })
+    await imagesStore.fetchImages({ page, limit: imagesStore.itemsPerPage })
   } catch (error) {
     console.error('Failed to fetch images:', error)
   }

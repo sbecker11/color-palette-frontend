@@ -14,6 +14,7 @@ type LazyComponent<T> = (T & DefineComponent<HydrationStrategies, {}, {}, {}, {}
 interface _GlobalComponents {
       'UiButton': typeof import("../components/ui/Button.vue")['default']
     'UiCard': typeof import("../components/ui/Card.vue")['default']
+    'UiDarkModeToggle': typeof import("../components/ui/DarkModeToggle.vue")['default']
     'UiModal': typeof import("../components/ui/Modal.vue")['default']
     'ApiHealthIndicator': typeof import("../components/ApiHealthIndicator.vue")['default']
     'ConfirmModal': typeof import("../components/ConfirmModal.vue")['default']
@@ -46,6 +47,7 @@ interface _GlobalComponents {
     'NuxtRouteAnnouncer': IslandComponent<typeof import("../node_modules/nuxt/dist/app/components/server-placeholder")['default']>
       'LazyUiButton': LazyComponent<typeof import("../components/ui/Button.vue")['default']>
     'LazyUiCard': LazyComponent<typeof import("../components/ui/Card.vue")['default']>
+    'LazyUiDarkModeToggle': LazyComponent<typeof import("../components/ui/DarkModeToggle.vue")['default']>
     'LazyUiModal': LazyComponent<typeof import("../components/ui/Modal.vue")['default']>
     'LazyApiHealthIndicator': LazyComponent<typeof import("../components/ApiHealthIndicator.vue")['default']>
     'LazyConfirmModal': LazyComponent<typeof import("../components/ConfirmModal.vue")['default']>
@@ -84,6 +86,7 @@ declare module 'vue' {
 
 export const UiButton: typeof import("../components/ui/Button.vue")['default']
 export const UiCard: typeof import("../components/ui/Card.vue")['default']
+export const UiDarkModeToggle: typeof import("../components/ui/DarkModeToggle.vue")['default']
 export const UiModal: typeof import("../components/ui/Modal.vue")['default']
 export const ApiHealthIndicator: typeof import("../components/ApiHealthIndicator.vue")['default']
 export const ConfirmModal: typeof import("../components/ConfirmModal.vue")['default']
@@ -116,6 +119,7 @@ export const NuxtIsland: typeof import("../node_modules/nuxt/dist/app/components
 export const NuxtRouteAnnouncer: IslandComponent<typeof import("../node_modules/nuxt/dist/app/components/server-placeholder")['default']>
 export const LazyUiButton: LazyComponent<typeof import("../components/ui/Button.vue")['default']>
 export const LazyUiCard: LazyComponent<typeof import("../components/ui/Card.vue")['default']>
+export const LazyUiDarkModeToggle: LazyComponent<typeof import("../components/ui/DarkModeToggle.vue")['default']>
 export const LazyUiModal: LazyComponent<typeof import("../components/ui/Modal.vue")['default']>
 export const LazyApiHealthIndicator: LazyComponent<typeof import("../components/ApiHealthIndicator.vue")['default']>
 export const LazyConfirmModal: LazyComponent<typeof import("../components/ConfirmModal.vue")['default']>

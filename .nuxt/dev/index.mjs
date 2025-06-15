@@ -1,5 +1,5 @@
 import process from 'node:process';globalThis._importMeta_={url:import.meta.url,env:process.env};import { tmpdir } from 'node:os';
-import { defineEventHandler, handleCacheHeaders, splitCookiesString, createEvent, fetchWithEvent, isEvent, eventHandler, setHeaders, sendRedirect, proxyRequest, getRequestHeader, setResponseHeaders, setResponseStatus, send, getRequestHeaders, setResponseHeader, getRequestURL, getResponseHeader, getQuery as getQuery$1, readBody, createApp, createRouter as createRouter$1, toNodeListener, lazyEventHandler, getResponseStatus, createError, getRouterParam, getResponseStatusText } from 'file:///Users/sbecker11/color-palette-app/color-palette-frontend/node_modules/h3/dist/index.mjs';
+import { defineEventHandler, handleCacheHeaders, splitCookiesString, createEvent, fetchWithEvent, isEvent, eventHandler, setHeaders, sendRedirect, proxyRequest, getRequestHeader, setResponseHeaders, setResponseStatus, send, getRequestHeaders, setResponseHeader, getRequestURL, getResponseHeader, getQuery as getQuery$1, readBody, createApp, createRouter as createRouter$1, toNodeListener, lazyEventHandler, getResponseStatus, createError, getRouterParam, readMultipartFormData, getResponseStatusText } from 'file:///Users/sbecker11/color-palette-app/color-palette-frontend/node_modules/h3/dist/index.mjs';
 import { Server } from 'node:http';
 import { resolve, dirname, join } from 'node:path';
 import nodeCrypto from 'node:crypto';
@@ -1429,9 +1429,19 @@ async function getIslandContext(event) {
   return ctx;
 }
 
+const _lazy_ozz8Vs = () => Promise.resolve().then(function () { return _id_$1; });
+const _lazy_DlAACA = () => Promise.resolve().then(function () { return palettes$1; });
+const _lazy_LpvuBb = () => Promise.resolve().then(function () { return index$1; });
+const _lazy__Tkt_n = () => Promise.resolve().then(function () { return uploadUrl_post$1; });
+const _lazy_wm10IX = () => Promise.resolve().then(function () { return upload_post$1; });
 const _lazy_mfnqxL = () => Promise.resolve().then(function () { return renderer$1; });
 
 const handlers = [
+  { route: '/api/images/:id', handler: _lazy_ozz8Vs, lazy: true, middleware: false, method: undefined },
+  { route: '/api/images/:id/palettes', handler: _lazy_DlAACA, lazy: true, middleware: false, method: undefined },
+  { route: '/api/images', handler: _lazy_LpvuBb, lazy: true, middleware: false, method: undefined },
+  { route: '/api/images/upload-url', handler: _lazy__Tkt_n, lazy: true, middleware: false, method: "post" },
+  { route: '/api/images/upload', handler: _lazy_wm10IX, lazy: true, middleware: false, method: "post" },
   { route: '/__nuxt_error', handler: _lazy_mfnqxL, lazy: true, middleware: false, method: undefined },
   { route: '/__nuxt_island/**', handler: _SxA8c9, lazy: false, middleware: false, method: undefined },
   { route: '/**', handler: _lazy_mfnqxL, lazy: true, middleware: false, method: undefined }
@@ -1760,6 +1770,232 @@ const styles = {};
 const styles$1 = /*#__PURE__*/Object.freeze({
   __proto__: null,
   default: styles
+});
+
+const _id_ = defineEventHandler(async (event) => {
+  const id = getRouterParam(event, "id");
+  const config = useRuntimeConfig();
+  const apiBase = config.public.apiBase || "http://localhost:3001/api/v1";
+  try {
+    const response = await fetch(`${apiBase}/images/${id}`);
+    if (!response.ok) {
+      throw new Error(`API returned ${response.status}`);
+    }
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error(`Error fetching image ${id} from API:`, error);
+    {
+      console.log(`Returning mock data for image ${id}`);
+      return getMockImageData(id);
+    }
+  }
+});
+function getMockImageData(id) {
+  return {
+    id,
+    name: `Sample Image ${id}`,
+    url: `https://picsum.photos/id/${parseInt(id) % 100}/800/600`,
+    thumbnail_url: `https://picsum.photos/id/${parseInt(id) % 100}/400/300`,
+    created_at: (/* @__PURE__ */ new Date()).toISOString(),
+    updated_at: (/* @__PURE__ */ new Date()).toISOString(),
+    width: 800,
+    height: 600,
+    file_size: 123456,
+    file_type: "image/jpeg",
+    colors: [
+      { hex: "#FF5733", rgb: "rgb(255, 87, 51)", name: "Coral Red" },
+      { hex: "#33FF57", rgb: "rgb(51, 255, 87)", name: "Lime Green" },
+      { hex: "#3357FF", rgb: "rgb(51, 87, 255)", name: "Royal Blue" },
+      { hex: "#F3FF33", rgb: "rgb(243, 255, 51)", name: "Bright Yellow" },
+      { hex: "#33FFF3", rgb: "rgb(51, 255, 243)", name: "Aqua" }
+    ]
+  };
+}
+
+const _id_$1 = /*#__PURE__*/Object.freeze({
+  __proto__: null,
+  default: _id_
+});
+
+const palettes = defineEventHandler(async (event) => {
+  const imageId = getRouterParam(event, "id");
+  const config = useRuntimeConfig();
+  const apiBase = config.public.apiBase || "http://localhost:3001/api/v1";
+  try {
+    const response = await fetch(`${apiBase}/images/${imageId}/palettes`);
+    if (!response.ok) {
+      throw new Error(`API returned ${response.status}`);
+    }
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error(`Error fetching palettes for image ${imageId} from API:`, error);
+    {
+      console.log(`Returning mock palette data for image ${imageId}`);
+      return getMockPalettesData(imageId);
+    }
+  }
+});
+function getMockPalettesData(imageId) {
+  const count = Math.floor(Math.random() * 4);
+  return Array.from({ length: count }, (_, i) => {
+    return {
+      id: `palette-${imageId}-${i + 1}`,
+      name: `Palette ${i + 1} for Image ${imageId}`,
+      description: i % 2 === 0 ? `A sample palette description for image ${imageId}` : "",
+      image_id: imageId,
+      created_at: new Date(Date.now() - i * 864e5).toISOString(),
+      updated_at: new Date(Date.now() - i * 864e5).toISOString(),
+      colors: [
+        { id: `color-${imageId}-${i}-1`, hex: "#FF5733", rgb: "rgb(255, 87, 51)", name: "Coral Red" },
+        { id: `color-${imageId}-${i}-2`, hex: "#33FF57", rgb: "rgb(51, 255, 87)", name: "Lime Green" },
+        { id: `color-${imageId}-${i}-3`, hex: "#3357FF", rgb: "rgb(51, 87, 255)", name: "Royal Blue" },
+        { id: `color-${imageId}-${i}-4`, hex: "#F3FF33", rgb: "rgb(243, 255, 51)", name: "Bright Yellow" },
+        { id: `color-${imageId}-${i}-5`, hex: "#33FFF3", rgb: "rgb(51, 255, 243)", name: "Aqua" }
+      ]
+    };
+  });
+}
+
+const palettes$1 = /*#__PURE__*/Object.freeze({
+  __proto__: null,
+  default: palettes
+});
+
+const index = defineEventHandler(async (event) => {
+  const query = getQuery$1(event);
+  const page = query.page || 1;
+  const limit = query.limit || 12;
+  const config = useRuntimeConfig();
+  const apiBase = config.public.apiBase || "http://localhost:3001/api/v1";
+  try {
+    const response = await fetch(`${apiBase}/images?page=${page}&limit=${limit}`);
+    if (!response.ok) {
+      throw new Error(`API returned ${response.status}`);
+    }
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error(`Error fetching images from API:`, error);
+    {
+      console.log(`Returning mock image data`);
+      return getMockImagesData(Number(page), Number(limit));
+    }
+  }
+});
+function getMockImagesData(page, limit) {
+  const total = 50;
+  const images = Array.from({ length: Math.min(limit, total - (page - 1) * limit) }, (_, i) => {
+    const id = `${(page - 1) * limit + i + 1}`;
+    return {
+      id,
+      name: `Sample Image ${id}`,
+      url: `https://picsum.photos/id/${parseInt(id) % 100}/800/600`,
+      thumbnail_url: `https://picsum.photos/id/${parseInt(id) % 100}/400/300`,
+      created_at: new Date(Date.now() - i * 864e5).toISOString(),
+      updated_at: new Date(Date.now() - i * 864e5).toISOString(),
+      width: 800,
+      height: 600,
+      file_size: 123456,
+      file_type: "image/jpeg"
+    };
+  });
+  return {
+    images,
+    total,
+    page,
+    limit
+  };
+}
+
+const index$1 = /*#__PURE__*/Object.freeze({
+  __proto__: null,
+  default: index
+});
+
+const uploadUrl_post = defineEventHandler(async (event) => {
+  try {
+    const config = useRuntimeConfig();
+    const apiBase = config.public.apiBase || "http://localhost:3001/api/v1";
+    const body = await readBody(event);
+    if (!body.name || !body.url) {
+      throw new Error("Name and URL are required");
+    }
+    const response = await fetch(`${apiBase}/images/from-url`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(body)
+    });
+    if (!response.ok) {
+      throw new Error(`API returned ${response.status}`);
+    }
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Error uploading image from URL:", error);
+    {
+      const requestBody = await readBody(event).catch(() => ({}));
+      console.log("Returning mock upload response");
+      return {
+        id: `image-${Date.now()}`,
+        name: (requestBody == null ? void 0 : requestBody.name) || "URL Image",
+        url: (requestBody == null ? void 0 : requestBody.url) || "https://picsum.photos/800/600",
+        thumbnail_url: "https://picsum.photos/400/300",
+        created_at: (/* @__PURE__ */ new Date()).toISOString(),
+        updated_at: (/* @__PURE__ */ new Date()).toISOString()
+      };
+    }
+  }
+});
+
+const uploadUrl_post$1 = /*#__PURE__*/Object.freeze({
+  __proto__: null,
+  default: uploadUrl_post
+});
+
+const upload_post = defineEventHandler(async (event) => {
+  try {
+    const config = useRuntimeConfig();
+    const apiBase = config.public.apiBase || "http://localhost:3001/api/v1";
+    const formData = await readMultipartFormData(event);
+    if (!formData) {
+      throw new Error("No form data received");
+    }
+    const forwardFormData = new FormData();
+    formData.forEach((part) => {
+      forwardFormData.append(part.name, part.type === "file" ? new Blob([part.data], { type: part.type }) : new TextDecoder().decode(part.data));
+    });
+    const response = await fetch(`${apiBase}/images`, {
+      method: "POST",
+      body: forwardFormData
+    });
+    if (!response.ok) {
+      throw new Error(`API returned ${response.status}`);
+    }
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Error uploading image:", error);
+    {
+      console.log("Returning mock upload response");
+      return {
+        id: `image-${Date.now()}`,
+        name: "Uploaded Image",
+        url: "https://picsum.photos/800/600",
+        thumbnail_url: "https://picsum.photos/400/300",
+        created_at: (/* @__PURE__ */ new Date()).toISOString(),
+        updated_at: (/* @__PURE__ */ new Date()).toISOString()
+      };
+    }
+  }
+});
+
+const upload_post$1 = /*#__PURE__*/Object.freeze({
+  __proto__: null,
+  default: upload_post
 });
 
 function renderPayloadResponse(ssrContext) {

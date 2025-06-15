@@ -1,36 +1,39 @@
 <template>
-  <div>
-    <nav class="bg-white shadow-sm">
+  <div class="min-h-screen transition-colors duration-200 dark:bg-gray-900 dark:text-gray-100">
+    <nav class="bg-white dark:bg-gray-800 shadow-sm">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between h-16">
           <div class="flex items-center">
             <NuxtLink to="/" class="flex-shrink-0 flex items-center">
-              <span class="text-xl font-bold text-primary-600">Color Palette Tool</span>
+              <span class="text-xl font-bold text-primary-600 dark:text-primary-400">Color Palette Tool</span>
             </NuxtLink>
           </div>
           
           <div class="flex items-center space-x-4">
             <NuxtLink 
               to="/" 
-              class="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-              :class="{ 'text-primary-600 bg-primary-50': route.path === '/' }"
+              class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors"
+              :class="{ 'text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30': route.path === '/' }"
             >
               Images
             </NuxtLink>
             <NuxtLink 
               to="/upload" 
-              class="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-              :class="{ 'text-primary-600 bg-primary-50': route.path === '/upload' }"
+              class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors"
+              :class="{ 'text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30': route.path === '/upload' }"
             >
               Upload
             </NuxtLink>
             <NuxtLink 
               to="/design-system" 
-              class="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-              :class="{ 'text-primary-600 bg-primary-50': route.path === '/design-system' }"
+              class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors"
+              :class="{ 'text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30': route.path === '/design-system' }"
             >
               Design System
             </NuxtLink>
+            
+            <!-- Dark mode toggle -->
+            <UiDarkModeToggle />
           </div>
         </div>
       </div>
@@ -68,6 +71,6 @@ useHead({
 
 <style scoped>
 .router-link-active {
-  @apply text-primary-600 bg-primary-50;
+  @apply text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30;
 }
 </style>
