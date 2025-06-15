@@ -1,35 +1,36 @@
 export interface Image {
-  id: string
-  name: string
-  url: string
-  thumbnailUrl?: string  // Make thumbnailUrl optional
-  createdAt: string
-  updatedAt: string
-  width: number
-  height: number
-  fileSize: number
-  fileType: string
-  colors?: Array<{hex: string; rgb: string; name: string}>
+  id: string;
+  name: string;
+  url: string;
+  thumbnailUrl?: string;
+  createdAt: string;
+  updatedAt: string;
+  width: number;
+  height: number;
+  fileSize: number;
+  fileType: string;
+  colors?: { hex: string; rgb: string; name: string; }[];
 }
 
+// Add this interface to handle API responses with snake_case
 export interface ImageApiResponse {
   id: string;
   name: string;
   url: string;
   thumbnail_url?: string;
-  thumbnailUrl?: string;
   created_at?: string;
-  createdAt?: string;
   updated_at?: string;
-  updatedAt?: string;
   width?: number;
   height?: number;
   file_size?: number;
-  fileSize?: number;
   content_type?: string;
   file_type?: string;
+  thumbnailUrl?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  fileSize?: number;
   fileType?: string;
-  colors?: Array<{hex: string; rgb: string; name: string}>;
+  colors?: { hex: string; rgb: string; name: string; }[];
 }
 
 export interface ImageUploadResponse {

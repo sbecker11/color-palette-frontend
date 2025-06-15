@@ -70,13 +70,26 @@ const imagesStore = useImagesStore()
 
 // Fetch images when the component is mounted
 onMounted(async () => {
+  console.log('Index page mounted');
+  
+  // Direct fetch to see what the API returns
   try {
-    await imagesStore.fetchImages()
+    const response = await fetch('/api/images?page=1&limit=12');
+    const data = await response.json();
+    console.log('API RESPONSE DATA:', data);
   } catch (error) {
-    console.error('Failed to fetch images:', error)
-    // Error is already handled in the store
+    console.error('Error fetching directly:', error);
   }
-})
+  
+  // Then try the store method
+  try {
+    await imagesStore.fetchImages();
+    console.log('STORE IMAGES COUNT:', imagesStore.images.length);
+    console.log('STORE IMAGES DATA:', imagesStore.images);
+  } catch (error) {
+    console.error('Error with store fetch:', error);
+  }
+});
 
 const navigateToUpload = () => {
   router.push('/upload')

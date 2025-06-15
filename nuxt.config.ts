@@ -1,4 +1,4 @@
-// https://nuxt.com/docs/api/configuration/nuxt-config
+
 export default defineNuxtConfig({
   devtools: { enabled: true },
   
@@ -50,7 +50,8 @@ export default defineNuxtConfig({
   // TypeScript configuration
   typescript: {
     strict: true,
-    typeCheck: true
+    typeCheck: true,
+    shim: false  // Add this to improve TypeScript performance
   },
 
   // Vite configuration
@@ -87,6 +88,33 @@ export default defineNuxtConfig({
   
   // Nitro configuration
   nitro: {
-    compatibilityDate: '2025-06-14'
+    compatibilityDate: '2025-06-14',
+    // Add these for better API handling
+    routeRules: {
+      '/api/**': {
+        cors: true,
+        headers: {
+          'Access-Control-Allow-Methods': 'GET,HEAD,PUT,PATCH,POST,DELETE',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Headers': '*'
+        }
+      }
+    }
+  },
+
+  // App configuration
+  app: {
+    head: {
+      title: 'Color Palette App',
+      meta: [
+        { charset: 'utf-8' },
+        { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+        { key: 'description', name: 'description', content: 'Extract and manage color palettes from images' }
+      ],
+      link: [
+        { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' }
+      ]
+    },
+    pageTransition: { name: 'page', mode: 'out-in' }
   }
 })

@@ -2,15 +2,18 @@ import { defineStore } from 'pinia'
 import type { Image, ImageApiResponse } from '~/types/image'
 
 export const useImagesStore = defineStore('images', {
-  state: () => ({
-    images: [] as Image[],
-    currentImage: null as Image | null,
-    loading: false,
-    error: null as string | null,
-    page: 1,
-    itemsPerPage: 12,
-    totalImages: 0
-  }),
+  state: () => {
+    console.log('Initializing images store');
+    return {
+      images: [] as Image[],
+      currentImage: null as Image | null,
+      loading: false,
+      error: null as string | null,
+      page: 1,
+      itemsPerPage: 12,
+      totalImages: 0
+    };
+  },
   
   getters: {
     hasImages: (state) => state.images.length > 0,
@@ -19,15 +22,28 @@ export const useImagesStore = defineStore('images', {
   },
   
   actions: {
+    // Transform API response to match your Image type
+    transformImageData(image: any): Image {
+      return {
+        id: image.id,
+        name: image.name,
+        url: image.url,
+        thumbnailUrl: image.thumbnail_url || image.thumbnailUrl || '',
+        createdAt: image.created_at || image.createdAt || '',
+        updatedAt: image.updated_at || image.updatedAt || '',
+        width: image.width || 0,
+        height: image.height || 0,
+        fileSize: image.file_size || image.fileSize || 0,
+        fileType: image.content_type || image.file_type || image.fileType || ''
+      };
+    },
+
     async fetchImages(options = { page: 1, limit: 12 }) {
-      this.loading = true
-      this.error = null
+      console.log('fetchImages called with options:', options);
+      this.loading = true;
+      this.error = null;
       
       try {
-        // Get the API client from the Nuxt app
-        const nuxtApp = useNuxtApp()
-        const api = nuxtApp.$api
-        
         // Set pagination parameters
         this.page = options.page
         this.itemsPerPage = options.limit
@@ -39,18 +55,28 @@ export const useImagesStore = defineStore('images', {
         }
         
         const data = await response.json()
+        console.log('Raw API response:', data);
         
-        // Update state with fetched data
-        this.images = data.images || []
-        this.totalImages = data.total || this.images.length
+        // Check if the response is an array or an object with images property
+        if (Array.isArray(data)) {
+          // Transform each image to match your Image type
+          this.images = data.map(this.transformImageData);
+          this.totalImages = data.length;
+          console.log('Processed array response, images count:', this.images.length);
+        } else {
+          // API returned an object with images property
+          this.images = (data.images || []).map(this.transformImageData);
+          this.totalImages = data.total || this.images.length;
+          console.log('Processed object response, images count:', this.images.length);
+        }
         
-        return this.images
+        return this.images;
       } catch (err: any) {
-        this.error = err.message || 'Failed to load images'
-        console.error('Error fetching images:', err)
-        throw err
+        this.error = err.message || 'Failed to load images';
+        console.error('Error fetching images:', err);
+        throw err;
       } finally {
-        this.loading = false
+        this.loading = false;
       }
     },
     

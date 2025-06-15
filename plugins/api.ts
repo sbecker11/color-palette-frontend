@@ -36,11 +36,13 @@ export default defineNuxtPlugin((nuxtApp) => {
   // Create the API client
   const api: ApiClientImpl = {
     async get<T>(endpoint: string, params?: Record<string, any>): Promise<T> {
+      console.log(`API get request for ${endpoint} with params:`, params);
+      
       // Only use mock data if we've explicitly set useMockData to true
       // and we're in development mode
       if (useMockData.value && isDev && endpoint.startsWith('/images')) {
-        console.log(`Using mock data for GET ${endpoint}`)
-        return getMockData<T>(endpoint, params)
+        console.log(`Using mock data for GET ${endpoint}`);
+        return getMockData<T>(endpoint, params);
       }
       
       const url = new URL(`${baseURL}${endpoint}`)
