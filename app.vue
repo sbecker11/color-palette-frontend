@@ -1,6 +1,8 @@
 <template>
   <div>
-    <NuxtPage />
+    <NuxtLayout>
+      <NuxtPage />
+    </NuxtLayout>
     <MockDataIndicator />
     <ApiHealthIndicator />
   </div>

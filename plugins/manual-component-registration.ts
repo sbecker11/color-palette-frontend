@@ -1,20 +1,23 @@
 import { defineNuxtPlugin } from '#app'
-// Import using the correct path for runtime
-import Button from '../components/ui/Button.vue'
 
 export default defineNuxtPlugin((nuxtApp) => {
   console.log('Manual component registration plugin loaded')
   
-  // Only register if not already registered
-  if (!Object.keys(nuxtApp.vueApp._context.components || {}).includes('UiButton')) {
-    // Manually register the Button component
-    nuxtApp.vueApp.component('UiButton', Button)
-    console.log('UiButton manually registered')
-  } else {
-    console.log('UiButton already registered, skipping manual registration')
-  }
+  // Check if components are registered
+  console.log('Components before manual registration:', Object.keys(nuxtApp.vueApp._context.components))
   
-  // Log after registration
-  const registeredComponents = Object.keys(nuxtApp.vueApp._context.components || {})
-  console.log('After registration check, components:', registeredComponents)
+  // We'll use dynamic import to avoid the error
+  import('~/components/ui/Modal.vue').then((UiModal) => {
+    if (!nuxtApp.vueApp._context.components['UiModal']) {
+      console.log('Manually registering UiModal component')
+      nuxtApp.vueApp.component('UiModal', UiModal.default)
+    } else {
+      console.log('UiModal already registered, skipping manual registration')
+    }
+    
+    // Check if components are registered after import
+    console.log('After registration check, components:', Object.keys(nuxtApp.vueApp._context.components))
+  }).catch(err => {
+    console.error('Failed to import UiModal component:', err)
+  })
 })

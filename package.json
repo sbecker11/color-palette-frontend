@@ -4,17 +4,12 @@
   "description": "Vue/Nuxt frontend for Color Palette Tool",
   "private": true,
   "scripts": {
-    "build": "nuxt build",
+    "cleanup": "npx nuxi cleanup",
     "dev": "nuxt dev",
+    "build": "nuxt build",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare && npm run fix-estree-walker && npm run fix-ultrahtml",
-    "test": "vitest",
-    "test:ui": "vitest --ui",
-    "test:coverage": "vitest --coverage",
-    "fix-estree-walker": "node scripts/fix-estree-walker.js",
-    "fix-ultrahtml": "node scripts/fix-ultrahtml.js",
-    "restart": "node scripts/restart-dev.js"
+    "postinstall": "nuxt prepare"
   },
   "devDependencies": {
     "@nuxt/devtools": "latest",
