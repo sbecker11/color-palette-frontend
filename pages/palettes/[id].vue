@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="palette-detail-container">
     <!-- Loading and error states -->
     <div v-if="loading" class="flex justify-center my-8">
       <p class="text-gray-600 dark:text-gray-400">Loading palette...</p>
@@ -10,26 +10,11 @@
     </div>
     
     <!-- Palette content -->
-    <div v-else-if="palette" class="space-y-6">
-      <!-- Palette header -->
-      <div class="flex items-center justify-between">
-        <div>
-          <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            {{ palette.name }}
-          </h1>
-        </div>
-        <button 
-          @click="goBack" 
-          class="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
-        >
-          Back
-        </button>
-      </div>
-      
+    <div v-else-if="palette" class="palette-content">
       <!-- Three-column layout -->
-      <div class="flex flex-col md:flex-row gap-6">
+      <div class="flex flex-col md:flex-row gap-6 relative w-full h-full" ref="columnsContainer">
         <!-- Column 1: Fixed width, palette name and metadata -->
-        <div class="w-full md:w-64 flex-shrink-0 bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+        <div class="w-full md:w-64 flex-shrink-0 bg-white dark:bg-gray-800 p-4 rounded-lg shadow h-full overflow-auto">
           <div class="space-y-4">
             <!-- Editable palette name -->
             <div>
@@ -64,18 +49,27 @@
               </p>
             </div>
             
-            <!-- Export button -->
-            <button 
-              @click="exportPalette" 
-              class="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md"
-            >
-              Export Palette
-            </button>
+            <!-- Navigation and export buttons -->
+            <div class="space-y-2">
+              <button 
+                @click="goBack" 
+                class="w-full px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-md transition-colors"
+              >
+                Back
+              </button>
+              
+              <button 
+                @click="exportPalette" 
+                class="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors"
+              >
+                Export Palette
+              </button>
+            </div>
           </div>
         </div>
         
         <!-- Column 2: Fixed width, color swatches -->
-        <div class="w-full md:w-96 flex-shrink-0 bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+        <div class="w-full md:w-96 flex-shrink-0 bg-white dark:bg-gray-800 p-4 rounded-lg shadow h-full overflow-auto">
           <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
             Colors ({{ palette.colors.length }})
           </h2>
@@ -140,7 +134,10 @@
         </div>
         
         <!-- Column 3: Resizable, image viewer -->
-        <div class="flex-grow bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+        <div 
+          class="w-full md:flex-1 bg-white dark:bg-gray-800 p-4 rounded-lg shadow h-full overflow-auto"
+          ref="imageColumnRef"
+        >
           <div class="flex justify-between items-center mb-4">
             <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">
               Source Image
@@ -176,12 +173,15 @@
             </div>
           </div>
           
-          <div class="relative h-[60vh] overflow-auto bg-gray-200 dark:bg-gray-700 rounded-lg" ref="imageContainer">
+          <div 
+            class="relative h-[calc(100%-60px)] overflow-auto bg-gray-200 dark:bg-gray-700 rounded-lg flex justify-center items-center" 
+            ref="imageContainer"
+          >
             <img 
               v-if="imageUrl" 
               :src="imageUrl" 
               alt="Palette source image" 
-              class="transform origin-top-left"
+              class="transform max-w-none"
               ref="imageRef"
               @error="handleImageError"
               :style="{ transform: `scale(${zoomLevel})` }"
@@ -222,7 +222,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, computed, watch, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { usePaletteStore } from '~/stores/palettes'
 import { storeToRefs } from 'pinia'
@@ -242,7 +242,12 @@ const loading = ref(false)
 const error = ref<string | null>(null)
 const imageRef = ref<HTMLImageElement | null>(null)
 const imageContainer = ref<HTMLDivElement | null>(null)
+const columnsContainer = ref<HTMLDivElement | null>(null)
+const imageColumnRef = ref<HTMLDivElement | null>(null)
 const zoomLevel = ref(1)
+const imageColumnWidth = ref(0)
+const rightMargin = ref(40) // Constant distance from right edge in pixels
+const bottomMargin = ref(40) // Constant distance from bottom edge in pixels
 
 // Computed properties
 const palette = computed(() => currentPalette.value)
@@ -257,6 +262,36 @@ const imageUrl = computed(() => {
   }
   
   return '';
+});
+
+// Function to update the image column width based on window size
+function updateImageColumnWidth() {
+  if (!columnsContainer.value || !imageColumnRef.value) return;
+  
+  // Get the container's left position and width
+  const containerRect = columnsContainer.value.getBoundingClientRect();
+  const containerLeft = containerRect.left;
+  const containerWidth = containerRect.width;
+  
+  // Calculate the width of the first two columns plus gaps
+  const fixedColumnsWidth = 64 + 96 + 12; // 64px (col1) + 96px (col2) + 12px (2 gaps)
+  
+  // Calculate the available width for the third column
+  const availableWidth = window.innerWidth - containerLeft - rightMargin.value - fixedColumnsWidth;
+  
+  // Set the image column width
+  imageColumnWidth.value = Math.max(300, availableWidth); // Minimum width of 300px
+}
+
+// Add resize event listener
+function setupResizeListener() {
+  window.addEventListener('resize', updateImageColumnWidth);
+  updateImageColumnWidth(); // Initial calculation
+}
+
+// Remove resize event listener on component unmount
+onUnmounted(() => {
+  window.removeEventListener('resize', updateImageColumnWidth);
 });
 
 // For delete color confirmation
@@ -466,6 +501,8 @@ onMounted(async () => {
   console.log('Component mounted, palette ID:', paletteId);
   if (paletteId) {
     await fetchPalette(paletteId);
+    // Set up resize listener after data is loaded
+    setupResizeListener();
   }
 });
 
@@ -487,3 +524,74 @@ async function savePalette() {
   }
 }
 </script>
+
+<style scoped>
+.palette-detail-container {
+  position: fixed;
+  top: 60px;
+  left: 30px;
+  right: 30px;
+  bottom: 30px;
+  overflow: hidden;
+  background-color: var(--bg-color, #f9fafb);
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Make palette content take full height */
+.palette-content {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  height: 100%;
+}
+
+/* Ensure the columns container takes remaining height */
+.palette-content > div:last-child {
+  flex-grow: 1;
+  min-height: 0; /* Important for flex children to respect parent height */
+}
+
+/* Ensure the third column takes all remaining space */
+@media (min-width: 768px) {
+  .palette-content [ref="columnsContainer"] > div:nth-child(3) {
+    width: calc(100% - 64px - 96px - 12px) !important;
+    flex: 1 1 auto !important;
+  }
+}
+
+/* Dark mode support */
+:root {
+  --bg-color: white;
+}
+
+.dark {
+  --bg-color: #1f2937; /* dark:bg-gray-800 */
+}
+
+/* Responsive adjustments */
+@media (max-width: 767px) {
+  .palette-detail-container {
+    position: relative;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: auto;
+    margin: 30px;
+    overflow: auto;
+  }
+  
+  .palette-content [ref="columnsContainer"] {
+    height: auto !important;
+  }
+  
+  .palette-content [ref="columnsContainer"] > div {
+    height: auto !important;
+    max-height: none !important;
+  }
+}
+</style>
