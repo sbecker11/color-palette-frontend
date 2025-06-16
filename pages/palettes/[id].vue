@@ -74,7 +74,7 @@
             Colors ({{ palette.colors.length }})
           </h2>
           
-          <div class="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
+          <div class="space-y-3 h-[calc(100%-3rem)] overflow-y-auto pr-2">
             <div 
               v-for="color in palette.colors" 
               :key="color.id" 
