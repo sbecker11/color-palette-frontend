@@ -43,24 +43,14 @@ export default defineEventHandler(async (event) => {
 })
 
 // Helper function to generate mock update palette response
-function getMockUpdatePaletteResponse(id: string, updates: any) {
-  // Extract image ID from palette ID if it follows a pattern like "palette-{imageId}-{number}"
-  const parts = id.split('-')
-  const imageId = updates.imageId || updates.image_id || (parts.length >= 3 ? `${parts[1]}` : 'default-image')
+function getMockUpdatePaletteResponse(id: string, body: any) {
+  console.log('Server: Creating mock update response for palette:', id)
+  console.log('Server: Update body:', body)
   
+  // Make sure to preserve all fields from the request body
   return {
     id,
-    name: updates.name || `Updated Palette ${id}`,
-    description: updates.description !== undefined ? updates.description : `A sample palette with ID ${id}`,
-    image_id: imageId,
-    image_url: `/api/mock/images/${imageId}.jpg`,
-    created_at: new Date(Date.now() - 86400000).toISOString(),
-    updated_at: new Date().toISOString(),
-    colors: updates.colors || [
-      { id: `color-${id}-1`, hex: '#FF5733', rgb: 'rgb(255, 87, 51)', name: 'Coral Red', position: 1 },
-      { id: `color-${id}-2`, hex: '#33FF57', rgb: 'rgb(51, 255, 87)', name: 'Lime Green', position: 2 },
-      { id: `color-${id}-3`, hex: '#3357FF', rgb: 'rgb(51, 87, 255)', name: 'Royal Blue', position: 3 },
-      { id: `color-${id}-4`, hex: '#F3FF33', rgb: 'rgb(243, 255, 51)', name: 'Bright Yellow', position: 4 }
-    ]
+    ...body,
+    updatedAt: new Date().toISOString()
   }
 }

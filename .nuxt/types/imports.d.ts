@@ -262,6 +262,7 @@ declare global {
   const useOffsetPagination: typeof import('../../node_modules/@vueuse/core')['useOffsetPagination']
   const useOnline: typeof import('../../node_modules/@vueuse/core')['useOnline']
   const usePageLeave: typeof import('../../node_modules/@vueuse/core')['usePageLeave']
+  const usePaletteStore: typeof import('../../stores/palettes')['usePaletteStore']
   const usePalettesStore: typeof import('../../stores/palettes')['usePalettesStore']
   const useParallax: typeof import('../../node_modules/@vueuse/core')['useParallax']
   const useParentElement: typeof import('../../node_modules/@vueuse/core')['useParentElement']
@@ -670,6 +671,7 @@ declare module 'vue' {
     readonly useOffsetPagination: UnwrapRef<typeof import('../../node_modules/@vueuse/core')['useOffsetPagination']>
     readonly useOnline: UnwrapRef<typeof import('../../node_modules/@vueuse/core')['useOnline']>
     readonly usePageLeave: UnwrapRef<typeof import('../../node_modules/@vueuse/core')['usePageLeave']>
+    readonly usePaletteStore: UnwrapRef<typeof import('../../stores/palettes')['usePaletteStore']>
     readonly usePalettesStore: UnwrapRef<typeof import('../../stores/palettes')['usePalettesStore']>
     readonly useParallax: UnwrapRef<typeof import('../../node_modules/@vueuse/core')['useParallax']>
     readonly useParentElement: UnwrapRef<typeof import('../../node_modules/@vueuse/core')['useParentElement']>

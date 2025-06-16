@@ -351,7 +351,6 @@ export default defineNuxtPlugin((nuxtApp) => {
           id,
           name: `Mock Image ${id}`,
           url: `https://picsum.photos/seed/${id}/800/600`,
-          thumbnailUrl: `https://picsum.photos/seed/${id}/400/300`,
           createdAt: new Date(Date.now() - i * 86400000).toISOString(),
           updatedAt: new Date(Date.now() - i * 86400000).toISOString(),
           width: 800,
@@ -382,7 +381,6 @@ export default defineNuxtPlugin((nuxtApp) => {
         id,
         name: `Mock Image ${id}`,
         url: `https://picsum.photos/seed/${id}/800/600`,
-        thumbnailUrl: `https://picsum.photos/seed/${id}/400/300`,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         width: 800,
@@ -413,7 +411,6 @@ export default defineNuxtPlugin((nuxtApp) => {
         id,
         name: data?.name || `Uploaded Image ${id}`,
         url: data?.url || `https://picsum.photos/seed/${id}/800/600`,
-        thumbnailUrl: `https://picsum.photos/seed/${id}/400/300`,
         createdAt: new Date().toISOString(),
         colors: [
           { hex: '#FF5733', rgb: 'rgb(255, 87, 51)', name: 'Coral Red' },

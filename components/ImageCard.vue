@@ -3,7 +3,7 @@
     <div class="relative aspect-w-16 aspect-h-9 bg-gray-100">
       <NuxtLink :to="`/images/${image.id}`">
         <img 
-          :src="image.thumbnailUrl || image.url" 
+          :src="image.url" 
           :alt="image.name"
           class="w-full h-full object-cover"
           loading="lazy"
@@ -15,7 +15,7 @@
         {{ image.name }}
       </h3>
       <p class="text-sm text-gray-500 mt-1">
-        {{ formatDate(image.createdAt) }}
+        ID: {{ image.id }}
       </p>
       <div class="mt-4 flex justify-between">
         <NuxtLink 

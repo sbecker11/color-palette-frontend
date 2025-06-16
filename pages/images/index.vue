@@ -29,7 +29,7 @@
       >
         <div class="aspect-w-16 aspect-h-12 bg-gray-100">
           <img 
-            :src="image.thumbnailUrl || image.url" 
+            :src="image.url" 
             :alt="image.name" 
             class="object-cover w-full h-full cursor-pointer"
             @click="viewImage(image.id)"
@@ -37,21 +37,9 @@
         </div>
         <div class="p-4">
           <h3 class="font-medium text-gray-900 truncate">{{ image.name }}</h3>
-          <p class="text-sm text-gray-500 mt-1">{{ formatDate(image.createdAt) }}</p>
+          <!-- Remove date display since created_at is not in API -->
           
-          <!-- Color preview if available -->
-          <div v-if="image.colors && image.colors.length" class="flex mt-2 space-x-1 overflow-hidden">
-            <div 
-              v-for="(color, index) in image.colors.slice(0, 5)" 
-              :key="index"
-              class="w-6 h-6 rounded-full"
-              :style="{ backgroundColor: color.hex }"
-              :title="color.hex"
-            ></div>
-            <div v-if="image.colors.length > 5" class="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs text-gray-600">
-              +{{ image.colors.length - 5 }}
-            </div>
-          </div>
+          <!-- Remove color preview section since colors aren't in API -->
           
           <div class="mt-3 flex justify-end">
             <UiButton 
@@ -149,7 +137,7 @@ const viewImage = (id: string) => {
   router.push(`/images/${id}`)
 }
 
-// Format date
+// Format date function can stay, but we won't use it for image.created_at
 const formatDate = (dateString: string) => {
   if (!dateString) return 'Unknown'
   const date = new Date(dateString)

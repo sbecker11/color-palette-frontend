@@ -24,9 +24,7 @@
             <h2 class="text-lg font-semibold mb-2">Image Details</h2>
             <ul class="space-y-1 text-sm">
               <li><span class="font-medium">Dimensions:</span> {{ image.width }}x{{ image.height }}</li>
-              <li><span class="font-medium">File Type:</span> {{ image.fileType }}</li>
-              <li><span class="font-medium">File Size:</span> {{ formatFileSize(image.fileSize) }}</li>
-              <li><span class="font-medium">Created:</span> {{ formatDate(image.createdAt) }}</li>
+              <!-- Remove fields not in API spec -->
             </ul>
           </div>
         </div>
@@ -105,7 +103,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useImagesStore } from '~/stores/images'
-import { usePalettesStore } from '~/stores/palettes'
+import { usePaletteStore } from '~/stores/palettes'
 import { storeToRefs } from 'pinia'
 import type { Palette } from '~/types/palette'
 import type { Image, ImageApiResponse } from '~/types/image'
@@ -113,7 +111,7 @@ import type { Image, ImageApiResponse } from '~/types/image'
 const route = useRoute()
 const router = useRouter()
 const imagesStore = useImagesStore()
-const palettesStore = usePalettesStore()
+const palettesStore = usePaletteStore()
 
 // Use storeToRefs to extract reactive refs from the store
 // This helps avoid the "target is readonly" warnings
@@ -189,24 +187,20 @@ async function fetchImageAndPalettes(imageId: string): Promise<void> {
 // Use Nuxt's useFetch for better SSR support
 const { data: imageData, pending, error: fetchError } = await useFetch<ImageApiResponse>(`/api/images/${route.params.id}`, {
   key: `image-${route.params.id}`,
-  transform: (response: ImageApiResponse): Image => {
-    if (!response) return null as unknown as Image
+  transform: (response: ImageApiResponse): ImageApiResponse => {
+    if (!response) return null as unknown as ImageApiResponse;
     
-    // Process the response to match your Image type
+    // Process the response but keep it as ImageApiResponse type
     return {
       id: response.id,
       name: response.name,
       url: response.url,
-      thumbnailUrl: response.thumbnail_url || response.thumbnailUrl || '',
-      createdAt: response.created_at || response.createdAt || new Date().toISOString(),
-      updatedAt: response.updated_at || response.updatedAt || new Date().toISOString(),
+      file_path: response.file_path || '',
       width: response.width || 0,
-      height: response.height || 0,
-      fileSize: response.file_size || response.fileSize || 0,
-      fileType: response.content_type || response.file_type || response.fileType || ''
-    }
+      height: response.height || 0
+    };
   }
-})
+});
 
 // Set the image data from the fetch result
 if (imageData.value) {

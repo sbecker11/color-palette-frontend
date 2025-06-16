@@ -27,9 +27,7 @@
         <img :src="image.url" :alt="image.name" class="w-full h-48 object-cover">
         <div class="p-4">
           <h3 class="text-lg font-semibold mb-2">{{ image.name }}</h3>
-          <p class="text-gray-600 text-sm">
-            Created: {{ formatDate(image.createdAt) }}
-          </p>
+          <!-- Remove date display since createdAt is not in API -->
           <div class="mt-4 flex justify-end">
             <UiButton 
               class="bg-blue-600 hover:bg-blue-700 text-white mr-2"

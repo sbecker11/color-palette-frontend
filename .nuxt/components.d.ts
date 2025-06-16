@@ -20,7 +20,9 @@ interface _GlobalComponents {
     'ConfirmModal': typeof import("../components/ConfirmModal.vue")['default']
     'ImageCard': typeof import("../components/ImageCard.vue")['default']
     'MockDataIndicator': typeof import("../components/MockDataIndicator.vue")['default']
+    'OfflineControls': typeof import("../components/OfflineControls.vue")['default']
     'Pagination': typeof import("../components/Pagination.vue")['default']
+    'PaletteCard': typeof import("../components/PaletteCard.vue")['default']
     'NuxtWelcome': typeof import("../node_modules/nuxt/dist/app/components/welcome.vue")['default']
     'NuxtLayout': typeof import("../node_modules/nuxt/dist/app/components/nuxt-layout")['default']
     'NuxtErrorBoundary': typeof import("../node_modules/nuxt/dist/app/components/nuxt-error-boundary.vue")['default']
@@ -53,7 +55,9 @@ interface _GlobalComponents {
     'LazyConfirmModal': LazyComponent<typeof import("../components/ConfirmModal.vue")['default']>
     'LazyImageCard': LazyComponent<typeof import("../components/ImageCard.vue")['default']>
     'LazyMockDataIndicator': LazyComponent<typeof import("../components/MockDataIndicator.vue")['default']>
+    'LazyOfflineControls': LazyComponent<typeof import("../components/OfflineControls.vue")['default']>
     'LazyPagination': LazyComponent<typeof import("../components/Pagination.vue")['default']>
+    'LazyPaletteCard': LazyComponent<typeof import("../components/PaletteCard.vue")['default']>
     'LazyNuxtWelcome': LazyComponent<typeof import("../node_modules/nuxt/dist/app/components/welcome.vue")['default']>
     'LazyNuxtLayout': LazyComponent<typeof import("../node_modules/nuxt/dist/app/components/nuxt-layout")['default']>
     'LazyNuxtErrorBoundary': LazyComponent<typeof import("../node_modules/nuxt/dist/app/components/nuxt-error-boundary.vue")['default']>
@@ -92,7 +96,9 @@ export const ApiHealthIndicator: typeof import("../components/ApiHealthIndicator
 export const ConfirmModal: typeof import("../components/ConfirmModal.vue")['default']
 export const ImageCard: typeof import("../components/ImageCard.vue")['default']
 export const MockDataIndicator: typeof import("../components/MockDataIndicator.vue")['default']
+export const OfflineControls: typeof import("../components/OfflineControls.vue")['default']
 export const Pagination: typeof import("../components/Pagination.vue")['default']
+export const PaletteCard: typeof import("../components/PaletteCard.vue")['default']
 export const NuxtWelcome: typeof import("../node_modules/nuxt/dist/app/components/welcome.vue")['default']
 export const NuxtLayout: typeof import("../node_modules/nuxt/dist/app/components/nuxt-layout")['default']
 export const NuxtErrorBoundary: typeof import("../node_modules/nuxt/dist/app/components/nuxt-error-boundary.vue")['default']
@@ -125,7 +131,9 @@ export const LazyApiHealthIndicator: LazyComponent<typeof import("../components/
 export const LazyConfirmModal: LazyComponent<typeof import("../components/ConfirmModal.vue")['default']>
 export const LazyImageCard: LazyComponent<typeof import("../components/ImageCard.vue")['default']>
 export const LazyMockDataIndicator: LazyComponent<typeof import("../components/MockDataIndicator.vue")['default']>
+export const LazyOfflineControls: LazyComponent<typeof import("../components/OfflineControls.vue")['default']>
 export const LazyPagination: LazyComponent<typeof import("../components/Pagination.vue")['default']>
+export const LazyPaletteCard: LazyComponent<typeof import("../components/PaletteCard.vue")['default']>
 export const LazyNuxtWelcome: LazyComponent<typeof import("../node_modules/nuxt/dist/app/components/welcome.vue")['default']>
 export const LazyNuxtLayout: LazyComponent<typeof import("../node_modules/nuxt/dist/app/components/nuxt-layout")['default']>
 export const LazyNuxtErrorBoundary: LazyComponent<typeof import("../node_modules/nuxt/dist/app/components/nuxt-error-boundary.vue")['default']>

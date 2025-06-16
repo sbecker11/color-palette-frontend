@@ -28,13 +28,10 @@ export const useImagesStore = defineStore('images', {
         id: image.id,
         name: image.name,
         url: image.url,
-        thumbnailUrl: image.thumbnail_url || image.thumbnailUrl || '',
-        createdAt: image.created_at || image.createdAt || '',
-        updatedAt: image.updated_at || image.updatedAt || '',
         width: image.width || 0,
         height: image.height || 0,
-        fileSize: image.file_size || image.fileSize || 0,
-        fileType: image.content_type || image.file_type || image.fileType || ''
+        // Only include properties that exist in the Image type
+        // Remove thumbnailUrl, createdAt, updatedAt, fileSize, fileType
       };
     },
 
@@ -105,19 +102,15 @@ export const useImagesStore = defineStore('images', {
     
     setCurrentImage(image: ImageApiResponse | Image) {
       // Transform ImageApiResponse to Image if needed
-      if ('thumbnail_url' in image || 'created_at' in image) {
+      if ('created_at' in image) {
         this.currentImage = {
           id: image.id,
           name: image.name,
           url: image.url,
-          thumbnailUrl: (image as ImageApiResponse).thumbnail_url || (image as ImageApiResponse).thumbnailUrl || '',
-          createdAt: (image as ImageApiResponse).created_at || (image as ImageApiResponse).createdAt || new Date().toISOString(),
-          updatedAt: (image as ImageApiResponse).updated_at || (image as ImageApiResponse).updatedAt || new Date().toISOString(),
           width: (image as ImageApiResponse).width || 0,
           height: (image as ImageApiResponse).height || 0,
-          fileSize: (image as ImageApiResponse).file_size || (image as ImageApiResponse).fileSize || 0,
-          fileType: (image as ImageApiResponse).content_type || (image as ImageApiResponse).file_type || (image as ImageApiResponse).fileType || '',
-          colors: (image as ImageApiResponse).colors || []
+          // Only include properties that exist in the Image type
+          file_path: (image as ImageApiResponse).file_path || ''
         }
       } else {
         this.currentImage = image as Image

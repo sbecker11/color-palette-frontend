@@ -1,19 +1,18 @@
 <template>
   <component
-    :is="tag"
+    :is="componentType"
     :class="[
-      'inline-flex items-center justify-center rounded-md font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2',
+      'inline-flex items-center justify-center rounded-md font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors',
       sizeClasses,
       variantClasses,
-      disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+      props.disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
     ]"
-    :disabled="disabled"
-    :to="to"
-    :href="href"
-    :type="type"
-    @click="$emit('click', $event)"
+    :disabled="props.disabled"
+    :to="props.to"
+    :href="props.href"
+    :type="props.type"
   >
-    <slot />
+    <slot></slot>
   </component>
 </template>
 
@@ -25,7 +24,7 @@ const props = defineProps({
   variant: {
     type: String,
     default: 'primary',
-    validator: (value: string) => ['primary', 'secondary', 'danger', 'link', 'disabled'].includes(value)
+    validator: (value: string) => ['primary', 'secondary', 'danger', 'link', 'disabled', 'outline'].includes(value)
   },
   size: {
     type: String,
@@ -50,19 +49,24 @@ const props = defineProps({
   }
 })
 
-defineEmits(['click'])
-
-const tag = computed(() => {
-  if (props.to) return resolveComponent('NuxtLink')
-  if (props.href) return 'a'
+const componentType = computed(() => {
+  if (props.to) {
+    return resolveComponent('NuxtLink')
+  }
+  if (props.href) {
+    return 'a'
+  }
   return 'button'
 })
 
 const sizeClasses = computed(() => {
   switch (props.size) {
-    case 'sm': return 'px-3 py-1.5 text-sm'
-    case 'lg': return 'px-6 py-3 text-lg'
-    default: return 'px-4 py-2 text-base' // md
+    case 'sm':
+      return 'px-3 py-1.5 text-sm'
+    case 'lg':
+      return 'px-5 py-3 text-lg'
+    default:
+      return 'px-4 py-2 text-base'
   }
 })
 
@@ -76,17 +80,12 @@ const variantClasses = computed(() => {
       return 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500'
     case 'link':
       return 'bg-transparent text-blue-600 hover:text-blue-800 hover:underline focus:ring-blue-500 px-0'
+    case 'outline':
+      return 'bg-transparent border border-blue-600 text-blue-600 hover:bg-blue-50 focus:ring-blue-500'
     case 'disabled':
       return 'bg-gray-300 text-gray-500'
     default:
       return 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500'
   }
 })
-</script>
-
-<script lang="ts">
-// Add a normal script block to ensure the component is properly exported
-export default {
-  name: 'UiButton'
-}
 </script>

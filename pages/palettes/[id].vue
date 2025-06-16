@@ -1,193 +1,312 @@
 <template>
-  <div class="container mx-auto px-4 py-8">
-    <div v-if="loading" class="flex justify-center items-center h-64">
-      <p class="text-gray-600 dark:text-gray-300">Loading palette...</p>
+  <div>
+    <!-- Loading and error states -->
+    <div v-if="loading" class="flex justify-center my-8">
+      <p class="text-gray-600 dark:text-gray-400">Loading palette...</p>
     </div>
     
-    <div v-else-if="error" class="bg-red-100 dark:bg-red-900 border border-red-400 text-red-700 dark:text-red-300 px-4 py-3 rounded">
-      <p>{{ error }}</p>
+    <div v-else-if="error" class="bg-red-100 dark:bg-red-900/30 p-4 rounded-lg my-4">
+      <p class="text-red-700 dark:text-red-400">{{ error }}</p>
     </div>
     
-    <div v-else-if="palette" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-      <!-- Debug info -->
-      <div class="lg:col-span-12 bg-gray-100 dark:bg-gray-800 p-4 rounded-lg mb-4">
-        <h3 class="font-bold mb-2">Debug Info:</h3>
-        <pre class="text-xs overflow-auto">{{ JSON.stringify(palette, null, 2) }}</pre>
+    <!-- Palette content -->
+    <div v-else-if="palette" class="space-y-6">
+      <!-- Palette header -->
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">
+            {{ palette.name }}
+          </h1>
+        </div>
+        <button 
+          @click="goBack" 
+          class="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+        >
+          Back
+        </button>
       </div>
       
-      <!-- Column 1: Palette Metadata (fixed width) -->
-      <div class="lg:col-span-3 bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
-        <h1 class="text-2xl font-bold mb-4">{{ palette.name }}</h1>
-        
-        <div class="mb-4">
-          <p v-if="palette.description" class="text-gray-600 dark:text-gray-300 mb-2">{{ palette.description }}</p>
-          
-          <div class="text-sm space-y-2">
-            <p><span class="font-medium">Created:</span> {{ formatDate(palette.createdAt) }}</p>
-            <p><span class="font-medium">Updated:</span> {{ formatDate(palette.updatedAt) }}</p>
-            <p><span class="font-medium">Colors:</span> {{ palette.colors.length }}</p>
+      <!-- Three-column layout -->
+      <div class="flex flex-col md:flex-row gap-6">
+        <!-- Column 1: Fixed width, palette name and metadata -->
+        <div class="w-full md:w-64 flex-shrink-0 bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+          <div class="space-y-4">
+            <!-- Editable palette name -->
+            <div>
+              <label for="palette-name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Palette Name
+              </label>
+              <input 
+                id="palette-name" 
+                v-model="palette.name" 
+                type="text" 
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                @change="savePalette"
+              />
+            </div>
+            
+            <!-- Non-editable metadata -->
+            <div class="space-y-2">
+              <p class="text-sm text-gray-600 dark:text-gray-400">
+                <span class="font-medium">Palette ID:</span> {{ palette.id }}
+              </p>
+              <p v-if="palette.description" class="text-sm text-gray-800 dark:text-gray-200">
+                <span class="font-medium">Description:</span> {{ palette.description }}
+              </p>
+              <p v-if="palette.image_id" class="text-sm text-gray-600 dark:text-gray-400">
+                <span class="font-medium">Source Image:</span> 
+                <button 
+                  @click="goToImage" 
+                  class="text-blue-600 dark:text-blue-400 hover:underline"
+                >
+                  View Image
+                </button>
+              </p>
+            </div>
+            
+            <!-- Export button -->
+            <button 
+              @click="exportPalette" 
+              class="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md"
+            >
+              Export Palette
+            </button>
           </div>
         </div>
         
-        <div class="mt-6 space-y-3">
-          <UiButton 
-            class="w-full bg-blue-600 hover:bg-blue-700 text-white"
-            @click="exportPalette"
-          >
-            Export Palette
-          </UiButton>
+        <!-- Column 2: Fixed width, color swatches -->
+        <div class="w-full md:w-96 flex-shrink-0 bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+          <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
+            Colors ({{ palette.colors.length }})
+          </h2>
           
-          <UiButton 
-            class="w-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-white"
-            @click="goToImage"
-          >
-            View Source Image
-          </UiButton>
-        </div>
-      </div>
-      
-      <!-- Column 2: Color Swatches Management (fixed width) -->
-      <div class="lg:col-span-3 bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
-        <h2 class="text-xl font-semibold mb-4">Color Swatches</h2>
-        
-        <div class="space-y-4">
-          <div 
-            v-for="color in palette.colors" 
-            :key="color.id" 
-            class="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md p-3 hover:shadow-md transition-shadow"
-          >
-            <div class="flex items-center space-x-3">
+          <div class="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
+            <div 
+              v-for="color in palette.colors" 
+              :key="color.id" 
+              class="flex items-center bg-white dark:bg-gray-700 p-3 rounded-md shadow-sm"
+            >
               <div 
-                class="w-10 h-10 rounded-md" 
+                class="w-12 h-12 rounded-md mr-4 shadow-inner" 
                 :style="{ backgroundColor: color.hex }"
               ></div>
               
               <div class="flex-1">
-                <p class="font-medium">{{ color.name || 'Unnamed Color' }}</p>
-                <p class="text-sm text-gray-600 dark:text-gray-300">{{ color.hex }}</p>
-                <p v-if="color.rgb" class="text-xs text-gray-500 dark:text-gray-400">{{ color.rgb }}</p>
+                <p class="font-medium" v-if="color.name">{{ color.name }}</p>
+                <p class="text-sm text-gray-600 dark:text-gray-400">{{ color.hex }}</p>
+                <p class="text-sm text-gray-600 dark:text-gray-400">{{ color.rgb }}</p>
               </div>
               
               <div class="flex space-x-2">
                 <button 
-                  @click="editColor(color)"
-                  class="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+                  @click="editColor(color)" 
+                  class="p-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
                   title="Edit color"
                 >
                   <span class="sr-only">Edit</span>
-                  ✏️
+                  <!-- Edit icon -->
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                  </svg>
                 </button>
                 
                 <button 
-                  @click="removeColor(color.id)"
-                  class="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
+                  @click="removeColor(color.id)" 
+                  class="p-2 text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
                   title="Remove color"
                 >
                   <span class="sr-only">Remove</span>
-                  🗑️
+                  <!-- Trash icon -->
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                  </svg>
                 </button>
               </div>
             </div>
-          </div>
-          
-          <UiButton 
-            class="w-full bg-green-600 hover:bg-green-700 text-white"
-            @click="addNewColor"
-          >
-            Add New Color
-          </UiButton>
-        </div>
-      </div>
-      
-      <!-- Column 3: Image (resizable) -->
-      <div class="lg:col-span-6 bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
-        <h2 class="text-xl font-semibold mb-4">Source Image</h2>
-        
-        <div v-if="palette && palette.imageId" class="relative">
-          <!-- Use a computed property for the image URL with fallback -->
-          <img 
-            :src="imageUrl" 
-            :alt="palette.name" 
-            class="w-full h-auto rounded-md cursor-crosshair"
-            @click="pickColorFromImage"
-            ref="imageRef"
-            @error="handleImageError"
-          />
-          
-          <div class="mt-3 text-sm text-gray-600 dark:text-gray-300">
-            <p>Click on the image to sample colors</p>
-            <p class="text-xs mt-1">Image URL: {{ imageUrl }}</p>
+            
+            <!-- Add new color button -->
+            <button 
+              @click="addNewColor" 
+              class="w-full py-2 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-md text-gray-600 dark:text-gray-400 hover:border-blue-500 dark:hover:border-blue-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+            >
+              <span class="flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                </svg>
+                Add New Color
+              </span>
+            </button>
           </div>
         </div>
         
-        <div v-else class="bg-gray-100 dark:bg-gray-700 rounded-md p-6 text-center">
-          <p class="text-gray-600 dark:text-gray-300">
-            No source image available
-          </p>
-          <p v-if="palette" class="text-xs mt-2 text-gray-500">
-            Debug info: imageUrl={{ palette.imageUrl }}, imageId={{ palette.imageId }}
-          </p>
+        <!-- Column 3: Resizable, image viewer -->
+        <div class="flex-grow bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">
+              Source Image
+            </h2>
+            <div class="flex space-x-2">
+              <button 
+                @click="zoomIn" 
+                class="p-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 bg-gray-100 dark:bg-gray-700 rounded"
+                title="Zoom In"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />
+                </svg>
+              </button>
+              <button 
+                @click="zoomOut" 
+                class="p-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 bg-gray-100 dark:bg-gray-700 rounded"
+                title="Zoom Out"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clip-rule="evenodd" />
+                </svg>
+              </button>
+              <button 
+                @click="fitImage" 
+                class="p-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 bg-gray-100 dark:bg-gray-700 rounded"
+                title="Fit to Container"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h4a1 1 0 010 2H6.414l2.293 2.293a1 1 0 01-1.414 1.414L5 6.414V8a1 1 0 01-2 0V4zm9 1a1 1 0 010-2h4a1 1 0 011 1v4a1 1 0 01-2 0V6.414l-2.293 2.293a1 1 0 11-1.414-1.414L13.586 5H12zm-9 7a1 1 0 012 0v1.586l2.293-2.293a1 1 0 011.414 1.414L6.414 15H8a1 1 0 010 2H4a1 1 0 01-1-1v-4zm13-1a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 010-2h1.586l-2.293-2.293a1 1 0 011.414-1.414L15 13.586V12a1 1 0 011-1z" clip-rule="evenodd" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          
+          <div class="relative h-[60vh] overflow-auto bg-gray-200 dark:bg-gray-700 rounded-lg" ref="imageContainer">
+            <img 
+              v-if="imageUrl" 
+              :src="imageUrl" 
+              alt="Palette source image" 
+              class="transform origin-top-left"
+              ref="imageRef"
+              @error="handleImageError"
+              :style="{ transform: `scale(${zoomLevel})` }"
+            />
+            <div v-else class="flex items-center justify-center h-full">
+              <p class="text-gray-500 dark:text-gray-400">No image available</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
     
-    <div class="mt-6">
-      <UiButton 
-        class="bg-gray-500 hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700 text-white"
-        @click="goBack"
-      >
-        Back
-      </UiButton>
+    <!-- No palette found -->
+    <div v-else class="bg-yellow-100 dark:bg-yellow-900/30 p-4 rounded-lg my-4">
+      <p class="text-yellow-700 dark:text-yellow-400">No palette found with the specified ID.</p>
     </div>
+    
+    <!-- Delete confirmation modal -->
+    <ConfirmModal
+      v-if="showDeleteConfirm"
+      v-model="showDeleteConfirm"
+      :message="deleteConfirmMessage"
+      @confirm="confirmDeleteColor"
+      @cancel="showDeleteConfirm = false"
+    >
+      <div v-if="colorToDeleteData" class="flex items-center mb-4">
+        <div 
+          class="w-10 h-10 rounded-md mr-3" 
+          :style="{ backgroundColor: colorToDeleteData.hex }"
+        ></div>
+        <div>
+          <p class="font-medium" v-if="colorToDeleteData.name">{{ colorToDeleteData.name }}</p>
+          <p class="text-sm text-gray-600 dark:text-gray-400">{{ colorToDeleteData.hex }}</p>
+        </div>
+      </div>
+    </ConfirmModal>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { usePalettesStore } from '~/stores/palettes'
+import { usePaletteStore } from '~/stores/palettes'
 import { storeToRefs } from 'pinia'
 import type { Palette, Color } from '~/types/palette'
+import ConfirmModal from '~/components/ConfirmModal.vue'
 
+// Router and route
 const route = useRoute()
 const router = useRouter()
-const palettesStore = usePalettesStore()
+
+// Store
+const palettesStore = usePaletteStore()
 const { currentPalette } = storeToRefs(palettesStore)
 
-const loading = ref(true)
+// Local state
+const loading = ref(false)
 const error = ref<string | null>(null)
 const imageRef = ref<HTMLImageElement | null>(null)
+const imageContainer = ref<HTMLDivElement | null>(null)
+const zoomLevel = ref(1)
 
-// Get the palette from the store or fetch it
-const palette = computed(() => {
-  // Add more detailed logging
-  console.log('Current palette:', currentPalette.value)
-  if (currentPalette.value) {
-    console.log('Image URL:', currentPalette.value.imageUrl)
-    console.log('Image ID:', currentPalette.value.imageId)
-    console.log('All palette properties:', Object.keys(currentPalette.value))
+// Computed properties
+const palette = computed(() => currentPalette.value)
+
+// Computed property for image URL with fallback
+const imageUrl = computed(() => {
+  if (!palette.value) return '';
+  
+  // Use image_id as that's what the API returns
+  if (palette.value.image_id) {
+    return `/api/images/${palette.value.image_id}/file`;
   }
-  return currentPalette.value
+  
+  return '';
+});
+
+// For delete color confirmation
+const showDeleteConfirm = ref(false)
+const colorToDelete = ref<string | null>(null)
+const colorToDeleteData = ref<Color | null>(null)
+const deleteConfirmMessage = computed(() => {
+  return `Are you sure you want to delete this color? This action cannot be undone.`
 })
 
-// Add a watch to log when the palette changes
-watch(palette, (newValue) => {
-  console.log('Palette changed:', newValue)
-  if (newValue) {
-    console.log('New image URL:', newValue.imageUrl)
-  }
-}, { immediate: true })
+// Image zoom functions
+function zoomIn(): void {
+  zoomLevel.value = Math.min(zoomLevel.value + 0.1, 3)
+}
 
-// Format date
-function formatDate(dateString: string): string {
-  if (!dateString) return 'Unknown'
+function zoomOut(): void {
+  zoomLevel.value = Math.max(zoomLevel.value - 0.1, 0.1)
+}
+
+function fitImage(): void {
+  if (!imageRef.value || !imageContainer.value) return
+  
+  const containerWidth = imageContainer.value.clientWidth
+  const containerHeight = imageContainer.value.clientHeight
+  const imageWidth = imageRef.value.naturalWidth
+  const imageHeight = imageRef.value.naturalHeight
+  
+  // Calculate the scale to fit the image in the container
+  const widthRatio = containerWidth / imageWidth
+  const heightRatio = containerHeight / imageHeight
+  
+  // Use the smaller ratio to ensure the image fits completely
+  zoomLevel.value = Math.min(widthRatio, heightRatio) * 0.9 // 90% of the container to add some padding
+}
+
+// Format date - handle missing date fields gracefully
+function formatDate(dateString: string | undefined): string {
+  if (!dateString) return 'Unknown';
   
   try {
-    const date = new Date(dateString)
-    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'Unknown';
+    
+    return new Intl.DateTimeFormat('default', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    }).format(date);
   } catch (e) {
-    console.error('Error formatting date:', e)
-    return 'Invalid date'
+    return 'Unknown';
   }
 }
 
@@ -197,9 +316,9 @@ function goBack(): void {
 }
 
 function goToImage(): void {
-  if (!palette.value || !palette.value.imageId) return
+  if (!palette.value || !palette.value.image_id) return
   
-  router.push(`/images/${palette.value.imageId}`)
+  router.push(`/images/${palette.value.image_id}`)
 }
 
 // Color management functions
@@ -210,9 +329,14 @@ function editColor(color: Color): void {
 }
 
 function removeColor(colorId: string): void {
-  // Implement color removal logic
-  console.log('Removing color:', colorId)
-  // This would call a store action to remove the color
+  colorToDelete.value = colorId
+  
+  // Find the color data to display in the modal
+  if (palette.value) {
+    colorToDeleteData.value = palette.value.colors.find(color => color.id === colorId) || null
+  }
+  
+  showDeleteConfirm.value = true
 }
 
 function addNewColor(): void {
@@ -226,28 +350,19 @@ async function exportPalette(): Promise<void> {
   if (!palette.value) return
   
   try {
-    // Fetch the export data from the API
-    const response = await fetch(`/api/palettes/${palette.value.id}/export`)
-    
-    if (!response.ok) {
-      throw new Error(`Failed to export palette: ${response.status}`)
-    }
-    
-    const exportData = await response.json()
-    
     // Create a formatted JSON object with palette metadata
     const formattedExport = {
       name: palette.value.name,
       description: palette.value.description || '',
-      colors: exportData.map((color: any) => ({
+      colors: palette.value.colors.map(color => ({
         hex: color.hex,
-        rgb: `rgb(${color.rgb[0]}, ${color.rgb[1]}, ${color.rgb[2]})`,
-        hsv: color.hsv ? `hsv(${color.hsv[0]}, ${color.hsv[1]}%, ${color.hsv[2]}%)` : undefined,
+        rgb: color.rgb,
+        name: color.name || '',
         position: color.position
       }))
     }
     
-    // Convert to JSON string
+    // Convert to JSON string with pretty formatting
     const jsonString = JSON.stringify(formattedExport, null, 2)
     
     // Create a blob and download link
@@ -257,7 +372,7 @@ async function exportPalette(): Promise<void> {
     // Create and trigger download
     const a = document.createElement('a')
     a.href = url
-    a.download = `${palette.value.name.replace(/\s+/g, '-').toLowerCase()}.json`
+    a.download = `${palette.value.name.replace(/\s+/g, '-').toLowerCase()}-palette.json`
     document.body.appendChild(a)
     a.click()
     
@@ -266,144 +381,109 @@ async function exportPalette(): Promise<void> {
     URL.revokeObjectURL(url)
   } catch (error) {
     console.error('Error exporting palette:', error)
-    // You could add error handling UI here
+    alert('Failed to export palette. Please try again.')
   }
 }
-
-// Image color picking function
-function pickColorFromImage(event: MouseEvent): void {
-  if (!imageRef.value || !palette.value) return
-  
-  const img = imageRef.value
-  const rect = img.getBoundingClientRect()
-  
-  // Calculate click position relative to image
-  const x = event.clientX - rect.left
-  const y = event.clientY - rect.top
-  
-  // Calculate the position as a percentage of image dimensions
-  const xPercent = x / rect.width
-  const yPercent = y / rect.height
-  
-  console.log(`Clicked at position: ${xPercent.toFixed(2)}%, ${yPercent.toFixed(2)}%`)
-  
-  // Create a canvas to sample the color
-  const canvas = document.createElement('canvas')
-  const context = canvas.getContext('2d')
-  if (!context) return
-  
-  // Set canvas dimensions to match image
-  canvas.width = img.naturalWidth
-  canvas.height = img.naturalHeight
-  
-  // Draw the image on the canvas
-  context.drawImage(img, 0, 0, canvas.width, canvas.height)
-  
-  // Calculate the pixel coordinates on the original image
-  const pixelX = Math.floor(xPercent * canvas.width)
-  const pixelY = Math.floor(yPercent * canvas.height)
-  
-  // Get the pixel data
-  try {
-    const pixelData = context.getImageData(pixelX, pixelY, 1, 1).data
-    const r = pixelData[0]
-    const g = pixelData[1]
-    const b = pixelData[2]
-    
-    // Convert to hex
-    const hex = `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`
-    
-    console.log(`Sampled color: RGB(${r}, ${g}, ${b}) / ${hex}`)
-    
-    // Add the color to the palette (you'll need to implement this)
-    addColorToPalette({
-      hex,
-      rgb: [r, g, b],
-      position: palette.value.colors.length
-    })
-  } catch (error) {
-    console.error('Error sampling color:', error)
-    // This might happen due to CORS issues with the image
-    alert('Unable to sample color from this image due to security restrictions.')
-  }
-}
-
-// Add a new color to the palette
-function addColorToPalette(colorData: { hex: string, rgb: number[], position: number }): void {
-  // This is a placeholder - you'll need to implement the actual API call
-  console.log('Adding color to palette:', colorData)
-  
-  // For now, just show a notification
-  alert(`Color ${colorData.hex} sampled! Implement API call to add to palette.`)
-  
-  // In a real implementation, you would:
-  // 1. Call an API to add the color to the palette
-  // 2. Update the local state
-  // 3. Show a success message
-}
-
-// Fetch the palette data
-async function fetchPalette(id: string): Promise<void> {
-  loading.value = true
-  error.value = null
-  
-  try {
-    console.log('Fetching palette with ID:', id)
-    await palettesStore.getPalette(id)
-    console.log('Fetch complete, palette:', currentPalette.value)
-  } catch (err: any) {
-    console.error('Error loading palette:', err)
-    error.value = 'Failed to load palette. Please try again.'
-  } finally {
-    loading.value = false
-  }
-}
-
-// Fetch data on component mount
-onMounted(async () => {
-  const paletteId = route.params.id?.toString()
-  console.log('Component mounted, palette ID:', paletteId)
-  if (paletteId) {
-    await fetchPalette(paletteId)
-  }
-})
-
-// Set page metadata
-useHead(() => ({
-  title: palette.value ? `${palette.value.name} - Color Palette Tool` : 'Palette Details - Color Palette Tool',
-  meta: [
-    { 
-      name: 'description', 
-      content: palette.value 
-        ? `View and edit the ${palette.value.name} color palette` 
-        : 'View and edit color palette details'
-    }
-  ]
-}))
-
-// Computed property for image URL with fallback
-const imageUrl = computed(() => {
-  if (!palette.value) return '';
-  
-  // If imageUrl is provided and not empty, use it
-  if (palette.value.imageUrl && palette.value.imageUrl.trim() !== '') {
-    return palette.value.imageUrl;
-  }
-  
-  // Otherwise, construct a URL from the imageId
-  if (palette.value.imageId) {
-    return `/api/images/${palette.value.imageId}/file`;
-  }
-  
-  // Fallback to a placeholder
-  return 'https://via.placeholder.com/800x600?text=No+Image';
-});
 
 // Handle image loading errors
 function handleImageError(e: Event): void {
   console.error('Image failed to load:', (e.target as HTMLImageElement).src);
   
-  // Set a fallback image
-  (e.target as HTMLImageElement).src = 'https://via.placeholder.com/800x600?text=Image+Not+Found';
+  // Check if we're already showing the fallback to prevent infinite loops
+  const currentSrc = (e.target as HTMLImageElement).src;
+  if (currentSrc.includes('data:image/svg')) {
+    return; // Already showing fallback, don't try again
+  }
+  
+  // Use a data URI for a fallback image - this is guaranteed to work locally
+  (e.target as HTMLImageElement).src = 'data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22800%22%20height%3D%22600%22%20viewBox%3D%220%200%20800%20600%22%3E%3Crect%20fill%3D%22%23f0f0f0%22%20width%3D%22800%22%20height%3D%22600%22%2F%3E%3Ctext%20fill%3D%22%23999999%22%20font-family%3D%22Arial%2C%20sans-serif%22%20font-size%3D%2224%22%20text-anchor%3D%22middle%22%20x%3D%22400%22%20y%3D%22300%22%3EImage%20Not%20Available%3C%2Ftext%3E%3C%2Fsvg%3E';
+}
+
+// Function to confirm and execute color deletion
+async function confirmDeleteColor(): Promise<void> {
+  if (!colorToDelete.value || !palette.value) return
+  
+  try {
+    // Create a copy of the palette
+    const updatedPalette = { ...palette.value }
+    
+    // Filter out the color to delete
+    updatedPalette.colors = updatedPalette.colors.filter(
+      color => color.id !== colorToDelete.value
+    )
+    
+    // Reset the modal
+    showDeleteConfirm.value = false
+    
+    // Call the store to update the palette - ensure ID is a string
+    await palettesStore.updatePalette(String(updatedPalette.id), updatedPalette)
+    
+    // Reset the color to delete
+    colorToDelete.value = null
+    colorToDeleteData.value = null
+  } catch (err) {
+    console.error('Error deleting color:', err)
+    // You could add error handling UI here
+  }
+}
+
+// Fetch the palette data
+async function fetchPalette(id: string): Promise<void> {
+  loading.value = true;
+  error.value = null;
+  
+  try {
+    console.log('Fetching palette with ID:', id);
+    await palettesStore.getPalette(id);
+    console.log('Fetch complete, palette:', currentPalette.value);
+    
+    // Debug the palette data
+    if (currentPalette.value) {
+      console.log('Palette data:', {
+        id: currentPalette.value.id,
+        name: currentPalette.value.name,
+        description: currentPalette.value.description,
+        image_id: currentPalette.value.image_id,
+        colors: currentPalette.value.colors?.length || 0
+      });
+    }
+    
+    // Add this check to ensure we have data
+    if (!currentPalette.value) {
+      throw new Error('No palette data returned');
+    }
+  } catch (err: any) {
+    console.error('Error loading palette:', err);
+    error.value = 'Failed to load palette. Please try again.';
+  } finally {
+    loading.value = false;
+  }
+}
+
+// Fetch data on component mount
+onMounted(async () => {
+  const paletteId = route.params.id?.toString();
+  console.log('Component mounted, palette ID:', paletteId);
+  if (paletteId) {
+    await fetchPalette(paletteId);
+  }
+});
+
+// Add a watcher to handle route changes
+watch(() => route.params.id, async (newId) => {
+  if (newId) {
+    await fetchPalette(newId.toString());
+  }
+});
+
+async function savePalette() {
+  if (!palette.value) return
+  
+  try {
+    // Save the current palette - ensure ID is a string
+    await palettesStore.updatePalette(String(palette.value.id), palette.value)
+  } catch (error) {
+    console.error('Error saving palette:', error)
+  }
 }
 </script>
