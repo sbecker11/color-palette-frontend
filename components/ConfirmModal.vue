@@ -1,3 +1,72 @@
+<script setup lang="ts">
+import { computed } from 'vue'
+import type { CSSProperties } from 'vue'
+
+const props = defineProps({
+  modelValue: {
+    type: Boolean,
+    required: true
+  },
+  title: {
+    type: String,
+    default: 'Confirm Action'
+  },
+  message: {
+    type: String,
+    default: 'Are you sure you want to perform this action?'
+  },
+  confirmText: {
+    type: String,
+    default: 'Confirm'
+  },
+  cancelText: {
+    type: String,
+    default: 'Cancel'
+  },
+  confirmVariant: {
+    type: String,
+    default: 'primary',
+    validator: (value: string) => ['primary', 'danger'].includes(value)
+  },
+  colorData: {
+    type: Object,
+    default: null
+  },
+  // Add new props for positioning
+  position: {
+    type: Object as () => { x: number | null, y: number | null },
+    default: () => ({ x: null, y: null })
+  }
+})
+
+const emit = defineEmits(['update:modelValue', 'confirm', 'cancel'])
+
+const confirm = () => {
+  emit('confirm')
+  close()
+}
+
+const close = () => {
+  emit('update:modelValue', false)
+  emit('cancel')
+}
+
+// Compute modal position styles with proper typing
+const modalStyle = computed<CSSProperties>(() => {
+  if (props.position.x === null || props.position.y === null) {
+    return {}
+  }
+  
+  return {
+    position: 'absolute' as const, // Type assertion to specific CSS position value
+    left: `${props.position.x}px`,
+    top: `${props.position.y}px`,
+    transform: 'translate(-100%, -100%)',
+    margin: '0'
+  }
+})
+</script>
+
 <template>
   <Teleport to="body">
     <Transition
@@ -13,8 +82,11 @@
           <!-- Background overlay with brightness 0.75 -->
           <div class="fixed inset-0 bg-gray-500 bg-opacity-75 backdrop-blur-sm backdrop-brightness-75 transition-opacity" @click="close"></div>
 
-          <!-- Modal panel -->
-          <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+          <!-- Modal panel with positioning -->
+          <div 
+            class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:align-middle sm:max-w-lg sm:w-full"
+            :style="modalStyle"
+          >
             <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
               <div class="sm:flex sm:items-start">
                 <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900 sm:mx-0 sm:h-10 sm:w-10">
@@ -32,18 +104,24 @@
                       {{ message }}
                     </p>
                     
-                    <!-- Color preview section -->
+                    <!-- Color preview section with enhanced display -->
                     <div v-if="colorData" class="mt-4 p-3 border border-gray-200 dark:border-gray-700 rounded-md">
                       <div class="flex items-center space-x-3">
                         <div 
-                          class="w-12 h-12 rounded-md" 
+                          class="w-12 h-12 rounded-md shadow-inner" 
                           :style="{ backgroundColor: colorData.hex }"
                         ></div>
-                        <div>
+                        <div class="flex-1">
                           <p v-if="colorData.name" class="font-medium text-gray-900 dark:text-gray-100">{{ colorData.name }}</p>
-                          <p class="text-sm text-gray-600 dark:text-gray-300">{{ colorData.hex }}</p>
-                          <p v-if="colorData.rgb" class="text-xs text-gray-500 dark:text-gray-400">
-                            rgb({{ colorData.rgb[0] }}, {{ colorData.rgb[1] }}, {{ colorData.rgb[2] }})
+                          <p class="text-sm text-gray-600 dark:text-gray-300 font-mono">{{ colorData.hex }}</p>
+                          <p class="text-xs text-gray-500 dark:text-gray-400 font-mono">
+                            <!-- Handle different RGB formats -->
+                            <template v-if="Array.isArray(colorData.rgb)">
+                              rgb({{ colorData.rgb[0] }}, {{ colorData.rgb[1] }}, {{ colorData.rgb[2] }})
+                            </template>
+                            <template v-else-if="typeof colorData.rgb === 'string'">
+                              {{ colorData.rgb }}
+                            </template>
                           </p>
                         </div>
                       </div>
@@ -79,49 +157,3 @@
     </Transition>
   </Teleport>
 </template>
-
-<script setup lang="ts">
-const props = defineProps({
-  modelValue: {
-    type: Boolean,
-    required: true
-  },
-  title: {
-    type: String,
-    default: 'Confirm Action'
-  },
-  message: {
-    type: String,
-    default: 'Are you sure you want to perform this action?'
-  },
-  confirmText: {
-    type: String,
-    default: 'Confirm'
-  },
-  cancelText: {
-    type: String,
-    default: 'Cancel'
-  },
-  confirmVariant: {
-    type: String,
-    default: 'primary',
-    validator: (value: string) => ['primary', 'danger'].includes(value)
-  },
-  colorData: {
-    type: Object,
-    default: null
-  }
-})
-
-const emit = defineEmits(['update:modelValue', 'confirm', 'cancel'])
-
-const confirm = () => {
-  emit('confirm')
-  close()
-}
-
-const close = () => {
-  emit('update:modelValue', false)
-  emit('cancel')
-}
-</script>
