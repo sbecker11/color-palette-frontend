@@ -74,7 +74,8 @@
             Colors ({{ palette.colors.length }})
           </h2>
           
-          <div class="space-y-3 h-[calc(100%-3rem)] overflow-y-auto pr-2">
+          <!-- Scrollable color list -->
+          <div class="space-y-3 h-[calc(100%-7rem)] overflow-y-auto pr-2 mb-3">
             <div 
               v-for="color in palette.colors" 
               :key="color.id" 
@@ -117,20 +118,20 @@
                 </button>
               </div>
             </div>
-            
-            <!-- Add new color button -->
-            <button 
-              @click="addNewColor" 
-              class="w-full py-2 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-md text-gray-600 dark:text-gray-400 hover:border-blue-500 dark:hover:border-blue-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-            >
-              <span class="flex items-center justify-center">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
-                </svg>
-                Add New Color
-              </span>
-            </button>
           </div>
+          
+          <!-- Add new color button - now outside the scrollable container -->
+          <button 
+            @click="addNewColor" 
+            class="w-full py-2 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-md text-gray-600 dark:text-gray-400 hover:border-blue-500 dark:hover:border-blue-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+          >
+            <span class="flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+              </svg>
+              Add New Color
+            </span>
+          </button>
         </div>
         
         <!-- Column 3: Resizable, image viewer -->
