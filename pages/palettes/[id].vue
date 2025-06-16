@@ -211,7 +211,7 @@
               v-if="imageUrl" 
               :src="imageUrl" 
               alt="Palette source image" 
-              class="transform max-w-none image-pixelated"
+              class="transform max-w-none pixel-perfect"
               ref="imageRef"
               @error="handleImageError"
               :style="{ transform: `scale(${zoomLevel})` }"
@@ -252,7 +252,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, watch, onUnmounted } from 'vue'
+import { ref, onMounted, computed, watch, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { usePaletteStore } from '~/stores/palettes'
 import { storeToRefs } from 'pinia'
@@ -333,14 +333,16 @@ function stopImageDrag(): void {
   isDraggingImage.value = false
 }
 
-// Modified zoom functions without upper limit
+// Modified zoom functions to use integer scaling for clearer pixels
 function zoomIn(): void {
-  zoomLevel.value += 0.2 // Larger increment for faster zooming
+  // Use larger steps for more noticeable pixel boundaries
+  zoomLevel.value = Math.ceil(zoomLevel.value * 1.5)
   updateImageTransform()
 }
 
 function zoomOut(): void {
-  zoomLevel.value = Math.max(zoomLevel.value - 0.2, 0.1) // Keep minimum zoom
+  // Use integer division for clearer pixels when zooming out
+  zoomLevel.value = Math.max(Math.floor(zoomLevel.value / 1.5), 1)
   updateImageTransform()
 }
 
@@ -386,10 +388,13 @@ function fillImage(): void {
 
 function updateImageTransform(): void {
   if (imageRef.value) {
+    // Round zoom level to nearest integer if it's above 1 for sharper pixels
+    const displayZoom = zoomLevel.value > 1 ? Math.round(zoomLevel.value) : zoomLevel.value
+    
     if (isPanModeActive.value) {
-      imageRef.value.style.transform = `translate(${imagePosition.value.x}px, ${imagePosition.value.y}px) scale(${zoomLevel.value})`
+      imageRef.value.style.transform = `translate(${imagePosition.value.x}px, ${imagePosition.value.y}px) scale(${displayZoom})`
     } else {
-      imageRef.value.style.transform = `scale(${zoomLevel.value})`
+      imageRef.value.style.transform = `scale(${displayZoom})`
     }
   }
 }
@@ -660,6 +665,9 @@ onMounted(async () => {
     await fetchPalette(paletteId);
     // Set up resize listener after data is loaded
     setupResizeListener();
+    
+    // We'll let the image onload handler take care of fitting the image
+    // This ensures consistent behavior between initial load and manual clicks
   }
 });
 
@@ -680,9 +688,62 @@ async function savePalette() {
     console.error('Error saving palette:', error)
   }
 }
+
+// Improved image loading and zoom handling
+function handleImageLoaded() {
+  console.log('Image loaded, applying zoom-to-fit');
+  // Use a short delay to ensure dimensions are calculated correctly
+  setTimeout(() => {
+    fitImage();
+    console.log('Zoom level after fit:', zoomLevel.value);
+  }, 50);
+}
+
+// Watch for image URL changes to apply zoom-to-fit when image loads
+watch(imageUrl, (newUrl) => {
+  if (newUrl) {
+    console.log('Image URL changed, waiting for load');
+    // Reset zoom level to ensure consistent behavior
+    zoomLevel.value = 1;
+  }
+});
+
+// Watch for the image element to be created
+watch(imageRef, (newRef) => {
+  if (newRef) {
+    console.log('Image ref created, setting onload handler');
+    // Remove any existing handlers to prevent duplicates
+    if (newRef.onload) newRef.onload = null;
+    
+    // Add an onload event handler to the image
+    newRef.onload = handleImageLoaded;
+    
+    // If the image is already loaded, call the handler directly
+    if (newRef.complete) {
+      console.log('Image already loaded, calling handler directly');
+      handleImageLoaded();
+    }
+  }
+});
 </script>
 
 <style scoped>
+/* Add stronger pixel rendering settings */
+.pixel-perfect {
+  image-rendering: optimizeSpeed;             /* Older versions of FF */
+  image-rendering: -moz-crisp-edges;          /* FF 6.0+ */
+  image-rendering: -webkit-optimize-contrast; /* Safari */
+  image-rendering: -o-crisp-edges;            /* Opera */
+  image-rendering: pixelated;                 /* Modern browsers */
+  image-rendering: crisp-edges;               /* Safari and Edge */
+  -ms-interpolation-mode: nearest-neighbor;   /* IE */
+  
+  /* Ensure transform uses nearest-neighbor */
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+  will-change: transform;
+}
+
 .palette-detail-container {
   position: fixed;
   top: 63px; /* Increased from 60px to 63px to avoid navbar overlap */
