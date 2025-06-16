@@ -1441,19 +1441,31 @@ async function getIslandContext(event) {
   return ctx;
 }
 
-const _lazy_ozz8Vs = () => Promise.resolve().then(function () { return _id_$1; });
+const _lazy_ozz8Vs = () => Promise.resolve().then(function () { return _id_$3; });
+const _lazy_p4dcI2 = () => Promise.resolve().then(function () { return file$1; });
 const _lazy_DlAACA = () => Promise.resolve().then(function () { return palettes$1; });
-const _lazy_LpvuBb = () => Promise.resolve().then(function () { return index$1; });
+const _lazy_LpvuBb = () => Promise.resolve().then(function () { return index$3; });
 const _lazy__Tkt_n = () => Promise.resolve().then(function () { return uploadUrl_post$1; });
 const _lazy_wm10IX = () => Promise.resolve().then(function () { return upload_post$1; });
+const _lazy_kQKoPH = () => Promise.resolve().then(function () { return _id__delete$1; });
+const _lazy_gfFqkC = () => Promise.resolve().then(function () { return _id__put$1; });
+const _lazy_0X8907 = () => Promise.resolve().then(function () { return _id_$1; });
+const _lazy_qC9HOJ = () => Promise.resolve().then(function () { return _export$1; });
+const _lazy_qFlsYu = () => Promise.resolve().then(function () { return index$1; });
 const _lazy_mfnqxL = () => Promise.resolve().then(function () { return renderer$1; });
 
 const handlers = [
   { route: '/api/images/:id', handler: _lazy_ozz8Vs, lazy: true, middleware: false, method: undefined },
+  { route: '/api/images/:id/file', handler: _lazy_p4dcI2, lazy: true, middleware: false, method: undefined },
   { route: '/api/images/:id/palettes', handler: _lazy_DlAACA, lazy: true, middleware: false, method: undefined },
   { route: '/api/images', handler: _lazy_LpvuBb, lazy: true, middleware: false, method: undefined },
   { route: '/api/images/upload-url', handler: _lazy__Tkt_n, lazy: true, middleware: false, method: "post" },
   { route: '/api/images/upload', handler: _lazy_wm10IX, lazy: true, middleware: false, method: "post" },
+  { route: '/api/palettes/:id', handler: _lazy_kQKoPH, lazy: true, middleware: false, method: "delete" },
+  { route: '/api/palettes/:id', handler: _lazy_gfFqkC, lazy: true, middleware: false, method: "put" },
+  { route: '/api/palettes/:id', handler: _lazy_0X8907, lazy: true, middleware: false, method: undefined },
+  { route: '/api/palettes/:id/export', handler: _lazy_qC9HOJ, lazy: true, middleware: false, method: undefined },
+  { route: '/api/palettes', handler: _lazy_qFlsYu, lazy: true, middleware: false, method: undefined },
   { route: '/__nuxt_error', handler: _lazy_mfnqxL, lazy: true, middleware: false, method: undefined },
   { route: '/__nuxt_island/**', handler: _SxA8c9, lazy: false, middleware: false, method: undefined },
   { route: '/**', handler: _lazy_mfnqxL, lazy: true, middleware: false, method: undefined }
@@ -1784,7 +1796,7 @@ const styles$1 = /*#__PURE__*/Object.freeze({
   default: styles
 });
 
-const _id_ = defineEventHandler(async (event) => {
+const _id_$2 = defineEventHandler(async (event) => {
   const id = getRouterParam(event, "id");
   const config = useRuntimeConfig();
   const apiBase = config.public.apiBase || "http://localhost:3001/api/v1";
@@ -1825,9 +1837,52 @@ function getMockImageData(id) {
   };
 }
 
-const _id_$1 = /*#__PURE__*/Object.freeze({
+const _id_$3 = /*#__PURE__*/Object.freeze({
   __proto__: null,
-  default: _id_
+  default: _id_$2
+});
+
+const file = defineEventHandler(async (event) => {
+  const id = getRouterParam(event, "id");
+  const config = useRuntimeConfig();
+  const apiBase = config.public.apiBase || "http://localhost:3001/api/v1";
+  try {
+    const response = await fetch(`${apiBase}/images/${id}/file`);
+    if (!response.ok) {
+      throw new Error(`API returned ${response.status}`);
+    }
+    const imageBuffer = await response.arrayBuffer();
+    const contentType = response.headers.get("content-type") || "image/jpeg";
+    setResponseHeader(event, "Content-Type", contentType);
+    return Buffer.from(imageBuffer);
+  } catch (error) {
+    console.error(`Error fetching image ${id} from API:`, error);
+    {
+      console.log(`Returning placeholder image for ${id}`);
+      const placeholderUrl = `https://picsum.photos/id/${parseInt(id) % 100}/800/600`;
+      try {
+        const placeholderResponse = await fetch(placeholderUrl);
+        const placeholderBuffer = await placeholderResponse.arrayBuffer();
+        setResponseHeader(event, "Content-Type", "image/jpeg");
+        return Buffer.from(placeholderBuffer);
+      } catch (placeholderError) {
+        console.error("Error fetching placeholder image:", placeholderError);
+        throw createError({
+          statusCode: 404,
+          statusMessage: "Image not found"
+        });
+      }
+    }
+    throw createError({
+      statusCode: 404,
+      statusMessage: "Image not found"
+    });
+  }
+});
+
+const file$1 = /*#__PURE__*/Object.freeze({
+  __proto__: null,
+  default: file
 });
 
 const palettes = defineEventHandler(async (event) => {
@@ -1845,11 +1900,11 @@ const palettes = defineEventHandler(async (event) => {
     console.error(`Error fetching palettes for image ${imageId} from API:`, error);
     {
       console.log(`Returning mock palette data for image ${imageId}`);
-      return getMockPalettesData(imageId);
+      return getMockPalettesData$1(imageId);
     }
   }
 });
-function getMockPalettesData(imageId) {
+function getMockPalettesData$1(imageId) {
   const count = Math.floor(Math.random() * 4);
   return Array.from({ length: count }, (_, i) => {
     return {
@@ -1875,7 +1930,7 @@ const palettes$1 = /*#__PURE__*/Object.freeze({
   default: palettes
 });
 
-const index = defineEventHandler(async (event) => {
+const index$2 = defineEventHandler(async (event) => {
   const query = getQuery$1(event);
   const page = query.page || 1;
   const limit = query.limit || 12;
@@ -1921,9 +1976,9 @@ function getMockImagesData(page, limit) {
   };
 }
 
-const index$1 = /*#__PURE__*/Object.freeze({
+const index$3 = /*#__PURE__*/Object.freeze({
   __proto__: null,
-  default: index
+  default: index$2
 });
 
 const uploadUrl_post = defineEventHandler(async (event) => {
@@ -2008,6 +2063,309 @@ const upload_post = defineEventHandler(async (event) => {
 const upload_post$1 = /*#__PURE__*/Object.freeze({
   __proto__: null,
   default: upload_post
+});
+
+const _id__delete = defineEventHandler(async (event) => {
+  const id = getRouterParam(event, "id");
+  const config = useRuntimeConfig();
+  const apiBase = config.public.apiBase || "http://localhost:3001/api/v1";
+  try {
+    const response = await fetch(`${apiBase}/palettes/${id}`, {
+      method: "DELETE"
+    });
+    if (!response.ok) {
+      throw new Error(`API returned ${response.status}`);
+    }
+    return { success: true, message: `Palette ${id} deleted successfully` };
+  } catch (error) {
+    console.error(`Error deleting palette ${id} via API:`, error);
+    {
+      console.log(`Returning mock delete response for palette ${id}`);
+      return { success: true, message: `Palette ${id} deleted successfully (mock)` };
+    }
+  }
+});
+
+const _id__delete$1 = /*#__PURE__*/Object.freeze({
+  __proto__: null,
+  default: _id__delete
+});
+
+const _id__put = defineEventHandler(async (event) => {
+  const id = getRouterParam(event, "id");
+  const body = await readBody(event);
+  const config = useRuntimeConfig();
+  const apiBase = config.public.apiBase || "http://localhost:3001/api/v1";
+  try {
+    const response = await fetch(`${apiBase}/palettes/${id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(body)
+    });
+    if (!response.ok) {
+      throw new Error(`API returned ${response.status}`);
+    }
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error(`Error updating palette ${id} via API:`, error);
+    {
+      console.log(`Returning mock update response for palette ${id}`);
+      return getMockUpdatePaletteResponse(id, body);
+    }
+  }
+});
+function getMockUpdatePaletteResponse(id, updates) {
+  const parts = id.split("-");
+  const imageId = updates.imageId || updates.image_id || (parts.length >= 3 ? `${parts[1]}` : "default-image");
+  return {
+    id,
+    name: updates.name || `Updated Palette ${id}`,
+    description: updates.description !== void 0 ? updates.description : `A sample palette with ID ${id}`,
+    image_id: imageId,
+    image_url: `/api/mock/images/${imageId}.jpg`,
+    created_at: new Date(Date.now() - 864e5).toISOString(),
+    updated_at: (/* @__PURE__ */ new Date()).toISOString(),
+    colors: updates.colors || [
+      { id: `color-${id}-1`, hex: "#FF5733", rgb: "rgb(255, 87, 51)", name: "Coral Red", position: 1 },
+      { id: `color-${id}-2`, hex: "#33FF57", rgb: "rgb(51, 255, 87)", name: "Lime Green", position: 2 },
+      { id: `color-${id}-3`, hex: "#3357FF", rgb: "rgb(51, 87, 255)", name: "Royal Blue", position: 3 },
+      { id: `color-${id}-4`, hex: "#F3FF33", rgb: "rgb(243, 255, 51)", name: "Bright Yellow", position: 4 }
+    ]
+  };
+}
+
+const _id__put$1 = /*#__PURE__*/Object.freeze({
+  __proto__: null,
+  default: _id__put
+});
+
+const _id_ = defineEventHandler(async (event) => {
+  const id = getRouterParam(event, "id");
+  const config = useRuntimeConfig();
+  const apiBase = config.public.apiBase || "http://localhost:3001/api/v1";
+  try {
+    const response = await fetch(`${apiBase}/palettes/${id}`);
+    if (!response.ok) {
+      throw new Error(`API returned ${response.status}`);
+    }
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error(`Error fetching palette ${id} from API:`, error);
+    {
+      console.log(`Returning mock data for palette ${id}`);
+      return getMockPaletteData(id);
+    }
+  }
+});
+function getMockPaletteData(id) {
+  const parts = id.split("-");
+  const imageId = parts.length >= 3 ? `${parts[1]}` : "default-image";
+  return {
+    id,
+    name: `Palette ${id}`,
+    description: `A sample palette with ID ${id}`,
+    image_id: imageId,
+    image_url: `/api/mock/images/${imageId}.jpg`,
+    created_at: new Date(Date.now() - 864e5).toISOString(),
+    updated_at: (/* @__PURE__ */ new Date()).toISOString(),
+    colors: [
+      { id: `color-${id}-1`, hex: "#FF5733", rgb: "rgb(255, 87, 51)", name: "Coral Red", position: 1 },
+      { id: `color-${id}-2`, hex: "#33FF57", rgb: "rgb(51, 255, 87)", name: "Lime Green", position: 2 },
+      { id: `color-${id}-3`, hex: "#3357FF", rgb: "rgb(51, 87, 255)", name: "Royal Blue", position: 3 },
+      { id: `color-${id}-4`, hex: "#F3FF33", rgb: "rgb(243, 255, 51)", name: "Bright Yellow", position: 4 },
+      { id: `color-${id}-5`, hex: "#FF33F3", rgb: "rgb(255, 51, 243)", name: "Hot Pink", position: 5 }
+    ]
+  };
+}
+
+const _id_$1 = /*#__PURE__*/Object.freeze({
+  __proto__: null,
+  default: _id_
+});
+
+const _export = defineEventHandler(async (event) => {
+  const id = getRouterParam(event, "id");
+  const config = useRuntimeConfig();
+  const apiBase = config.public.apiBase || "http://localhost:3001/api/v1";
+  try {
+    const response = await fetch(`${apiBase}/palettes/${id}/export`);
+    if (!response.ok) {
+      throw new Error(`API returned ${response.status}`);
+    }
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error(`Error exporting palette ${id} from API:`, error);
+    {
+      console.log(`Returning mock export data for palette ${id}`);
+      return getMockExportData();
+    }
+  }
+});
+function getMockExportData(id) {
+  return [
+    {
+      "id": "44e60575-adc2-4c94-ad96-f792a21c0fb8",
+      "hex": "#302376",
+      "hsv": [249, 70, 46],
+      "rgb": [48, 35, 118],
+      "position": 0
+    },
+    {
+      "id": "d60adb66-d1d6-4d86-a91d-bcca8394ecca",
+      "hex": "#015277",
+      "hsv": [199, 99, 47],
+      "rgb": [1, 82, 119],
+      "position": 1
+    },
+    {
+      "id": "618c52e4-4903-43c1-8e4f-668cc25dcc07",
+      "hex": "#636fab",
+      "hsv": [230, 42, 67],
+      "rgb": [99, 111, 171],
+      "position": 2
+    },
+    {
+      "id": "8bb05bb3-379c-46fd-945c-f7df07bdc8bc",
+      "hex": "#15aec2",
+      "hsv": [187, 89, 76],
+      "rgb": [21, 174, 194],
+      "position": 3
+    },
+    {
+      "id": "ff0054d5-1980-42ca-8827-d3b53dfb1c58",
+      "hex": "#8eaccd",
+      "hsv": [211, 31, 80],
+      "rgb": [142, 172, 205],
+      "position": 4
+    }
+  ];
+}
+
+const _export$1 = /*#__PURE__*/Object.freeze({
+  __proto__: null,
+  default: _export
+});
+
+const index = defineEventHandler(async (event) => {
+  if (event.method === "POST") {
+    return handleCreatePalette(event);
+  }
+  const query = getQuery$1(event);
+  const config = useRuntimeConfig();
+  const apiBase = config.public.apiBase || "http://localhost:3001/api/v1";
+  try {
+    const queryParams = new URLSearchParams();
+    if (query.page) queryParams.append("page", query.page.toString());
+    if (query.limit) queryParams.append("limit", query.limit.toString());
+    if (query.search) queryParams.append("search", query.search.toString());
+    const queryString = queryParams.toString() ? `?${queryParams.toString()}` : "";
+    const response = await fetch(`${apiBase}/palettes${queryString}`);
+    if (!response.ok) {
+      throw new Error(`API returned ${response.status}`);
+    }
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Error fetching palettes from API:", error);
+    {
+      console.log("Returning mock palettes data");
+      return getMockPalettesData(query);
+    }
+  }
+});
+async function handleCreatePalette(event) {
+  const body = await readBody(event);
+  const config = useRuntimeConfig();
+  const apiBase = config.public.apiBase || "http://localhost:3001/api/v1";
+  try {
+    const response = await fetch(`${apiBase}/palettes`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(body)
+    });
+    if (!response.ok) {
+      throw new Error(`API returned ${response.status}`);
+    }
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Error creating palette via API:", error);
+    {
+      console.log("Returning mock create palette response");
+      return getMockCreatePaletteResponse(body);
+    }
+  }
+}
+function getMockPalettesData(query) {
+  const page = parseInt(query.page) || 1;
+  const limit = parseInt(query.limit) || 10;
+  const total = 25;
+  const palettes = Array.from({ length: Math.min(limit, total - (page - 1) * limit) }, (_, i) => {
+    const id = `palette-${(page - 1) * limit + i + 1}`;
+    const imageId = `image-${Math.floor(Math.random() * 20) + 1}`;
+    return {
+      id,
+      name: `Palette ${(page - 1) * limit + i + 1}`,
+      description: i % 2 === 0 ? `A sample palette description for ${id}` : "",
+      image_id: imageId,
+      image_url: `/api/mock/images/${imageId}.jpg`,
+      created_at: new Date(Date.now() - i * 864e5).toISOString(),
+      updated_at: new Date(Date.now() - i * 432e5).toISOString(),
+      colors: [
+        { id: `color-${id}-1`, hex: "#FF5733", rgb: "rgb(255, 87, 51)", name: "Coral Red", position: 1 },
+        { id: `color-${id}-2`, hex: "#33FF57", rgb: "rgb(51, 255, 87)", name: "Lime Green", position: 2 },
+        { id: `color-${id}-3`, hex: "#3357FF", rgb: "rgb(51, 87, 255)", name: "Royal Blue", position: 3 }
+      ]
+    };
+  });
+  return {
+    palettes,
+    meta: {
+      pagination: {
+        total,
+        per_page: limit,
+        current_page: page,
+        total_pages: Math.ceil(total / limit)
+      }
+    }
+  };
+}
+function getMockCreatePaletteResponse(body) {
+  const id = `palette-${Date.now()}`;
+  const imageId = body.imageId || body.image_id || `image-${Math.floor(Math.random() * 20) + 1}`;
+  const colors = body.colors || [
+    { id: `color-${id}-1`, hex: "#FF5733", rgb: "rgb(255, 87, 51)", name: "Coral Red", position: 1 },
+    { id: `color-${id}-2`, hex: "#33FF57", rgb: "rgb(51, 255, 87)", name: "Lime Green", position: 2 },
+    { id: `color-${id}-3`, hex: "#3357FF", rgb: "rgb(51, 87, 255)", name: "Royal Blue", position: 3 }
+  ];
+  return {
+    id,
+    name: body.name || `New Palette ${id}`,
+    description: body.description || "",
+    image_id: imageId,
+    image_url: `/api/mock/images/${imageId}.jpg`,
+    created_at: (/* @__PURE__ */ new Date()).toISOString(),
+    updated_at: (/* @__PURE__ */ new Date()).toISOString(),
+    colors: colors.map((color, index) => ({
+      id: color.id || `color-${id}-${index + 1}`,
+      hex: color.hex,
+      rgb: color.rgb,
+      name: color.name || "",
+      position: color.position || index + 1
+    }))
+  };
+}
+
+const index$1 = /*#__PURE__*/Object.freeze({
+  __proto__: null,
+  default: index
 });
 
 function renderPayloadResponse(ssrContext) {

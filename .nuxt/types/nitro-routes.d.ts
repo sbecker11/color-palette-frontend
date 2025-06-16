@@ -6,6 +6,9 @@ declare module "nitropack/types" {
     '/api/images/:id': {
       'default': Simplify<Serialize<Awaited<ReturnType<typeof import('../../server/api/images/[id]').default>>>>
     }
+    '/api/images/:id/file': {
+      'default': Simplify<Serialize<Awaited<ReturnType<typeof import('../../server/api/images/[id]/file').default>>>>
+    }
     '/api/images/:id/palettes': {
       'default': Simplify<Serialize<Awaited<ReturnType<typeof import('../../server/api/images/[id]/palettes').default>>>>
     }
@@ -17,6 +20,17 @@ declare module "nitropack/types" {
     }
     '/api/images/upload': {
       'post': Simplify<Serialize<Awaited<ReturnType<typeof import('../../server/api/images/upload.post').default>>>>
+    }
+    '/api/palettes/:id': {
+      'delete': Simplify<Serialize<Awaited<ReturnType<typeof import('../../server/api/palettes/[id].delete').default>>>>
+      'put': Simplify<Serialize<Awaited<ReturnType<typeof import('../../server/api/palettes/[id].put').default>>>>
+      'default': Simplify<Serialize<Awaited<ReturnType<typeof import('../../server/api/palettes/[id]').default>>>>
+    }
+    '/api/palettes/:id/export': {
+      'default': Simplify<Serialize<Awaited<ReturnType<typeof import('../../server/api/palettes/[id]/export').default>>>>
+    }
+    '/api/palettes': {
+      'default': Simplify<Serialize<Awaited<ReturnType<typeof import('../../server/api/palettes/index').default>>>>
     }
     '/__nuxt_error': {
       'default': Simplify<Serialize<Awaited<ReturnType<typeof import('../../node_modules/nuxt/dist/core/runtime/nitro/handlers/renderer').default>>>>
