@@ -82,9 +82,16 @@
               class="flex items-center bg-white dark:bg-gray-700 p-3 rounded-md shadow-sm"
             >
               <div 
-                class="w-12 h-12 rounded-md mr-4 shadow-inner" 
+                class="w-12 h-12 rounded-md mr-4 shadow-inner cursor-pointer relative"
                 :style="{ backgroundColor: color.hex }"
-              ></div>
+                @click="toggleColorSelection(color.id)"
+              >
+                <!-- Interior white border for selected color -->
+                <div 
+                  v-if="selectedColorId === color.id" 
+                  class="absolute inset-0 rounded-md border border-white pointer-events-none"
+                ></div>
+              </div>
               
               <div class="flex-1">
                 <p class="font-medium" v-if="color.name">{{ color.name }}</p>
@@ -150,7 +157,7 @@
                 title="Zoom In"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h5V6a1 1 0 011-1z" clip-rule="evenodd" />
+                  <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
                 </svg>
               </button>
               <button 
@@ -207,6 +214,10 @@
           <div 
             class="relative h-[calc(100%-60px)] overflow-auto bg-gray-200 dark:bg-gray-700 rounded-lg flex justify-center items-center" 
             ref="imageContainer"
+            @mouseenter="showColorSelector = true"
+            @mouseleave="showColorSelector = false"
+            @mousemove="updateColorSelectorPosition"
+            @click="handleImageClick"
           >
             <img 
               v-if="imageUrl" 
@@ -220,6 +231,21 @@
             <div v-else class="flex items-center justify-center h-full">
               <p class="text-gray-500 dark:text-gray-400">No image available</p>
             </div>
+            
+            <!-- Color selector overlay -->
+            <div 
+              v-if="showColorSelector && imageUrl" 
+              class="absolute pointer-events-none border border-white"
+              :style="{
+                width: '32px',
+                height: '32px',
+                left: `${colorSelectorPosition.x - 16}px`,
+                top: `${colorSelectorPosition.y - 16}px`,
+                backgroundColor: 'transparent',
+                boxShadow: '0 0 0 1px rgba(0, 0, 0, 0.5)',
+                zIndex: 10
+              }"
+            ></div>
           </div>
         </div>
       </div>
@@ -283,6 +309,11 @@ const isDraggingImage = ref(false)
 const isPanModeActive = ref(false)
 const lastMousePosition = ref({ x: 0, y: 0 })
 const imagePosition = ref({ x: 0, y: 0 })
+const showColorSelector = ref(false)
+const colorSelectorPosition = ref({ x: 0, y: 0 })
+const selectedColorId = ref<string | null>(null)
+const sampledColor = ref<string>('')
+const canvasRef = ref<HTMLCanvasElement | null>(null)
 
 // Dark mode detection
 const isDarkMode = ref(false)
@@ -726,6 +757,147 @@ watch(imageRef, (newRef) => {
     }
   }
 });
+
+// Add this function to update the color selector position
+function updateColorSelectorPosition(e: MouseEvent) {
+  if (!imageContainer.value) return
+  
+  const rect = imageContainer.value.getBoundingClientRect()
+  colorSelectorPosition.value = {
+    x: e.clientX - rect.left,
+    y: e.clientY - rect.top
+  }
+  
+  // Sample the color if the image is loaded
+  if (imageRef.value && imageRef.value.complete) {
+    sampledColor.value = getColorAtPosition() || ''
+  }
+}
+
+// Add a function to get the color at the current position (optional)
+function getColorAtPosition(): string | null {
+  if (!imageRef.value || !imageContainer.value) return null
+  
+  try {
+    // Create canvas if it doesn't exist
+    if (!canvasRef.value) {
+      canvasRef.value = document.createElement('canvas')
+    }
+    
+    const canvas = canvasRef.value
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return null
+    
+    // Set canvas size to match image
+    canvas.width = imageRef.value.naturalWidth
+    canvas.height = imageRef.value.naturalHeight
+    
+    // Draw image to canvas
+    ctx.drawImage(imageRef.value, 0, 0)
+    
+    // Calculate the position in the original image coordinates
+    const scaleX = imageRef.value.naturalWidth / imageRef.value.width
+    const scaleY = imageRef.value.naturalHeight / imageRef.value.height
+    
+    // Adjust for zoom level
+    const x = Math.floor((colorSelectorPosition.value.x / zoomLevel.value) * scaleX)
+    const y = Math.floor((colorSelectorPosition.value.y / zoomLevel.value) * scaleY)
+    
+    // Get pixel data
+    const pixel = ctx.getImageData(x, y, 1, 1).data
+    
+    // Convert to hex
+    const hex = `#${pixel[0].toString(16).padStart(2, '0')}${pixel[1].toString(16).padStart(2, '0')}${pixel[2].toString(16).padStart(2, '0')}`
+    
+    return hex
+  } catch (error) {
+    console.error('Error sampling color:', error)
+    return null
+  }
+}
+
+// Function to toggle color selection
+function toggleColorSelection(colorId: string): void {
+  if (selectedColorId.value === colorId) {
+    // If already selected, unselect it
+    selectedColorId.value = null
+  } else {
+    // Otherwise, select it
+    selectedColorId.value = colorId
+  }
+}
+
+// Function to add the sampled color to the palette
+function addSampledColor() {
+  if (!sampledColor.value || !palette.value) return
+  
+  // If a color is selected, update that color instead of adding a new one
+  if (selectedColorId.value) {
+    // Find the selected color
+    const colorIndex = palette.value.colors.findIndex(c => c.id === selectedColorId.value)
+    
+    if (colorIndex !== -1) {
+      // Create a copy of the palette
+      const updatedPalette = { ...palette.value }
+      
+      // Update the color
+      updatedPalette.colors = [...updatedPalette.colors]
+      updatedPalette.colors[colorIndex] = {
+        ...updatedPalette.colors[colorIndex],
+        hex: sampledColor.value,
+        rgb: hexToRgb(sampledColor.value)
+      }
+      
+      // Save the updated palette
+      palettesStore.updatePalette(String(updatedPalette.id), updatedPalette)
+      
+      // Unselect the color
+      selectedColorId.value = null
+      
+      return
+    }
+  }
+  
+  // If no color is selected or the selected color wasn't found,
+  // add a new color to the palette
+  const newColor = {
+    id: `color-${Date.now()}`,
+    hex: sampledColor.value,
+    rgb: hexToRgb(sampledColor.value),
+    name: '',
+    position: palette.value.colors.length
+  }
+  
+  // Create a copy of the palette
+  const updatedPalette = { ...palette.value }
+  
+  // Add the new color
+  updatedPalette.colors = [...updatedPalette.colors, newColor]
+  
+  // Save the updated palette
+  palettesStore.updatePalette(String(updatedPalette.id), updatedPalette)
+}
+
+// Helper function to convert hex to rgb
+function hexToRgb(hex: string): string {
+  // Remove # if present
+  hex = hex.replace(/^#/, '')
+  
+  // Parse the hex values
+  const r = parseInt(hex.substring(0, 2), 16)
+  const g = parseInt(hex.substring(2, 4), 16)
+  const b = parseInt(hex.substring(4, 6), 16)
+  
+  // Return the RGB string
+  return `rgb(${r}, ${g}, ${b})`
+}
+
+// Add click handler to the image container
+function handleImageClick(e: MouseEvent) {
+  if (showColorSelector.value && sampledColor.value) {
+    addSampledColor()
+  }
+}
 </script>
 
 <style scoped>
