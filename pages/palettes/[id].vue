@@ -307,6 +307,21 @@ import { storeToRefs } from 'pinia'
 import type { Palette, Color, PaletteColor } from '~/types/palette'
 import ConfirmModal from '~/components/ConfirmModal.vue'
 
+// Add TypeScript interface augmentation for the File System Access API
+declare global {
+  interface Window {
+    showSaveFilePicker?: (options?: {
+      suggestedName?: string;
+      types?: Array<{
+        description: string;
+        accept: Record<string, string[]>;
+      }>;
+      excludeAcceptAllOption?: boolean;
+      startIn?: 'desktop' | 'documents' | 'downloads' | 'music' | 'pictures' | 'videos';
+    }) => Promise<any>;
+  }
+}
+
 // Router and route
 const route = useRoute()
 const router = useRouter()
@@ -655,23 +670,63 @@ async function exportPalette(): Promise<void> {
     // Convert to JSON string with pretty formatting
     const jsonString = JSON.stringify(formattedExport, null, 2)
     
-    // Create a blob and download link
+    // Create a blob
     const blob = new Blob([jsonString], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
     
-    // Create and trigger download
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${palette.value.name.replace(/\s+/g, '-').toLowerCase()}-palette.json`
-    document.body.appendChild(a)
-    a.click()
+    // Generate default filename (kebab case of palette name)
+    const defaultFilename = `${palette.value.name.replace(/\s+/g, '-').toLowerCase()}-palette.json`
     
-    // Clean up
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
+    try {
+      // Use the File System Access API if available (modern browsers)
+      if ('showSaveFilePicker' in window) {
+        const fileHandle = await window.showSaveFilePicker({
+          suggestedName: defaultFilename,
+          types: [{
+            description: 'JSON Files',
+            accept: { 'application/json': ['.json'] }
+          }],
+          // Try to start in Downloads folder
+          startIn: 'downloads'
+        });
+        
+        const writable = await fileHandle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+        
+        console.log('Palette exported successfully using File System Access API');
+      } else {
+        // Fallback for browsers without File System Access API
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = defaultFilename;
+        document.body.appendChild(a);
+        a.click();
+        
+        // Clean up
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        console.log('Palette exported successfully using download attribute fallback');
+      }
+    } catch (error) {
+      console.error('Error with file picker, falling back to direct download:', error);
+      
+      // Fallback if file picker fails or is cancelled
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = defaultFilename;
+      document.body.appendChild(a);
+      a.click();
+      
+      // Clean up
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
   } catch (error) {
-    console.error('Error exporting palette:', error)
-    alert('Failed to export palette. Please try again.')
+    console.error('Error exporting palette:', error);
+    alert('Failed to export palette. Please try again.');
   }
 }
 
