@@ -18,7 +18,6 @@ interface _GlobalComponents {
     'UiModal': typeof import("../components/ui/Modal.vue")['default']
     'ApiHealthIndicator': typeof import("../components/ApiHealthIndicator.vue")['default']
     'ConfirmModal': typeof import("../components/ConfirmModal.vue")['default']
-    'ImageCard': typeof import("../components/ImageCard.vue")['default']
     'MockDataIndicator': typeof import("../components/MockDataIndicator.vue")['default']
     'OfflineControls': typeof import("../components/OfflineControls.vue")['default']
     'Pagination': typeof import("../components/Pagination.vue")['default']
@@ -53,7 +52,6 @@ interface _GlobalComponents {
     'LazyUiModal': LazyComponent<typeof import("../components/ui/Modal.vue")['default']>
     'LazyApiHealthIndicator': LazyComponent<typeof import("../components/ApiHealthIndicator.vue")['default']>
     'LazyConfirmModal': LazyComponent<typeof import("../components/ConfirmModal.vue")['default']>
-    'LazyImageCard': LazyComponent<typeof import("../components/ImageCard.vue")['default']>
     'LazyMockDataIndicator': LazyComponent<typeof import("../components/MockDataIndicator.vue")['default']>
     'LazyOfflineControls': LazyComponent<typeof import("../components/OfflineControls.vue")['default']>
     'LazyPagination': LazyComponent<typeof import("../components/Pagination.vue")['default']>
@@ -94,7 +92,6 @@ export const UiDarkModeToggle: typeof import("../components/ui/DarkModeToggle.vu
 export const UiModal: typeof import("../components/ui/Modal.vue")['default']
 export const ApiHealthIndicator: typeof import("../components/ApiHealthIndicator.vue")['default']
 export const ConfirmModal: typeof import("../components/ConfirmModal.vue")['default']
-export const ImageCard: typeof import("../components/ImageCard.vue")['default']
 export const MockDataIndicator: typeof import("../components/MockDataIndicator.vue")['default']
 export const OfflineControls: typeof import("../components/OfflineControls.vue")['default']
 export const Pagination: typeof import("../components/Pagination.vue")['default']
@@ -129,7 +126,6 @@ export const LazyUiDarkModeToggle: LazyComponent<typeof import("../components/ui
 export const LazyUiModal: LazyComponent<typeof import("../components/ui/Modal.vue")['default']>
 export const LazyApiHealthIndicator: LazyComponent<typeof import("../components/ApiHealthIndicator.vue")['default']>
 export const LazyConfirmModal: LazyComponent<typeof import("../components/ConfirmModal.vue")['default']>
-export const LazyImageCard: LazyComponent<typeof import("../components/ImageCard.vue")['default']>
 export const LazyMockDataIndicator: LazyComponent<typeof import("../components/MockDataIndicator.vue")['default']>
 export const LazyOfflineControls: LazyComponent<typeof import("../components/OfflineControls.vue")['default']>
 export const LazyPagination: LazyComponent<typeof import("../components/Pagination.vue")['default']>

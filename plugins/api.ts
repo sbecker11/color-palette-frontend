@@ -455,8 +455,8 @@ export default defineNuxtPlugin((nuxtApp) => {
         const route = useRoute()
         if (route.path === '/' || route.path.startsWith('/images')) {
           console.log('On images page, refreshing data with real API')
-          const imagesStore = useImagesStore()
-          imagesStore.fetchImages()
+          // const imagesStore = useImagesStore()
+          // imagesStore.fetchImages()
         }
       }
     }, 100)

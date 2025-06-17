@@ -12,24 +12,27 @@
           <div class="flex items-center space-x-4">
             <NuxtLink 
               to="/" 
-              class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors"
-              :class="{ 'text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30': route.path === '/' }"
+              :class="[
+                'px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                route.path === '/'
+                  ? 'text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-800 cursor-not-allowed pointer-events-none opacity-60'
+                  : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
+              ]"
+              aria-disabled="true"
             >
-              Images
-            </NuxtLink>
-            <NuxtLink 
-              to="/upload" 
-              class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors"
-              :class="{ 'text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30': route.path === '/upload' }"
-            >
-              Upload
+              Palettes
             </NuxtLink>
             <NuxtLink 
               to="/design-system" 
-              class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors"
-              :class="{ 'text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30': route.path === '/design-system' }"
+              :class="[
+                'px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                route.path === '/design-system'
+                  ? 'text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-800 cursor-not-allowed pointer-events-none opacity-60'
+                  : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
+              ]"
+              aria-disabled="true"
             >
-              Design System
+              Design
             </NuxtLink>
             
             <!-- Add compact offline toggle -->

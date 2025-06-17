@@ -16,3 +16,8 @@ body {
 .dark *, * {
   @apply transition-colors duration-200;
 }
+
+.palette-detail-container {
+  /* ... */
+  /* border: 2px solid red; */
+}

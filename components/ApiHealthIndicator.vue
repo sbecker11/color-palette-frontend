@@ -22,45 +22,51 @@
         </button>
       </div>
       
-      <div v-if="healthStatus.isChecking" class="text-center py-4">
-        <p>Checking API status...</p>
+      <div v-if="paletteStore.offlineMode" class="text-sm text-yellow-600 mt-2">
+        Offline mode enabled. No server connection.
       </div>
       
       <div v-else>
-        <div class="flex items-center mb-2">
-          <div 
-            class="w-3 h-3 rounded-full mr-2"
-            :class="statusColor"
-          ></div>
-          <span class="font-medium">{{ statusText }}</span>
+        <div v-if="healthStatus.isChecking" class="text-center py-4">
+          <p>Checking API status...</p>
         </div>
         
-        <div v-if="healthStatus.data" class="text-sm space-y-1 mt-3">
-          <p><span class="font-medium">Version:</span> {{ healthStatus.data.version }}</p>
-          <p><span class="font-medium">Environment:</span> {{ healthStatus.data.environment }}</p>
-          <p><span class="font-medium">Database:</span> {{ healthStatus.data.database_connection ? 'Connected' : 'Disconnected' }}</p>
-          <p><span class="font-medium">Rails:</span> {{ healthStatus.data.rails_version }}</p>
-          <p><span class="font-medium">Last checked:</span> {{ formattedLastChecked }}</p>
-        </div>
-        
-        <div v-if="healthStatus.error" class="text-sm text-red-600 mt-2">
-          {{ healthStatus.error }}
-        </div>
-        
-        <div class="mt-4 flex space-x-2">
-          <button 
-            @click="refreshStatus" 
-            class="bg-blue-100 hover:bg-blue-200 text-blue-800 px-3 py-1 rounded text-sm"
-          >
-            Refresh
-          </button>
-          <button 
-            v-if="!healthStatus.isHealthy"
-            @click="checkRailsStatus" 
-            class="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-1 rounded text-sm"
-          >
-            Check Rails
-          </button>
+        <div v-else>
+          <div class="flex items-center mb-2">
+            <div 
+              class="w-3 h-3 rounded-full mr-2"
+              :class="statusColor"
+            ></div>
+            <span class="font-medium">{{ statusText }}</span>
+          </div>
+          
+          <div v-if="healthStatus.data" class="text-sm space-y-1 mt-3">
+            <p><span class="font-medium">Version:</span> {{ healthStatus.data.version }}</p>
+            <p><span class="font-medium">Environment:</span> {{ healthStatus.data.environment }}</p>
+            <p><span class="font-medium">Database:</span> {{ healthStatus.data.database_connection ? 'Connected' : 'Disconnected' }}</p>
+            <p><span class="font-medium">Rails:</span> {{ healthStatus.data.rails_version }}</p>
+            <p><span class="font-medium">Last checked:</span> {{ formattedLastChecked }}</p>
+          </div>
+          
+          <div v-if="healthStatus.error" class="text-sm text-red-600 mt-2">
+            {{ healthStatus.error }}
+          </div>
+          
+          <div class="mt-4 flex space-x-2">
+            <button 
+              @click="refreshStatus" 
+              class="bg-blue-100 hover:bg-blue-200 text-blue-800 px-3 py-1 rounded text-sm"
+            >
+              Refresh
+            </button>
+            <button 
+              v-if="!healthStatus.isHealthy"
+              @click="checkRailsStatus" 
+              class="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-1 rounded text-sm"
+            >
+              Check Rails
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -70,11 +76,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useApiHealth } from '~/composables/useApiHealth'
+import { usePaletteStore } from '~/stores/palettes'
 
 const showDetails = ref(false)
 const railsStatus = ref<{ isUp: boolean; status: number; statusText: string } | null>(null)
 
 const { healthStatus, checkHealth, checkRailsUp } = useApiHealth()
+const paletteStore = usePaletteStore()
 
 // Format the last checked timestamp
 const formattedLastChecked = computed(() => {
@@ -128,6 +136,8 @@ async function checkRailsStatus() {
 
 // Check API health on mount
 onMounted(async () => {
-  await checkHealth()
+  if (!paletteStore.offlineMode) {
+    await checkHealth()
+  }
 })
 </script>

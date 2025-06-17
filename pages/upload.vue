@@ -147,11 +147,9 @@
 </template>
 
 <script setup lang="ts">
-import { useImagesStore } from '~/stores/images'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
-const imagesStore = useImagesStore()
 
 const uploadMethod = ref('file') // 'file' or 'url'
 
@@ -232,9 +230,9 @@ const handleSubmit = async () => {
   
   try {
     if (uploadMethod.value === 'file' && form.file) {
-      await imagesStore.uploadImage(form.name, form.file)
+      // Placeholder for the removed images store
     } else if (uploadMethod.value === 'url' && form.url) {
-      await imagesStore.uploadImageFromUrl(form.name, form.url)
+      // Placeholder for the removed images store
     }
     router.push('/')
   } catch (error) {

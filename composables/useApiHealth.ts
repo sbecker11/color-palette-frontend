@@ -1,5 +1,6 @@
 // composables/useApiHealth.ts
 import { ref, computed } from 'vue'
+import { usePaletteStore } from '~/stores/palettes'
 
 export interface ApiHealthData {
   status: string;
@@ -32,8 +33,19 @@ export function useApiHealth() {
     error: null
   })
 
+  const paletteStore = usePaletteStore();
+
   // Check the API health
   async function checkHealth() {
+    if (paletteStore.offlineMode) {
+      return {
+        isHealthy: false,
+        isChecking: false,
+        lastChecked: new Date().toISOString(),
+        data: null,
+        error: 'Offline mode enabled'
+      }
+    }
     healthStatus.value.isChecking = true
     healthStatus.value.error = null
     
@@ -80,6 +92,13 @@ export function useApiHealth() {
 
   // Check the Rails /up endpoint as a fallback
   async function checkRailsUp() {
+    if (paletteStore.offlineMode) {
+      return {
+        isUp: false,
+        status: 0,
+        statusText: 'Offline mode enabled'
+      }
+    }
     try {
       const baseUrl = apiUrl.value.replace(/\/api\/v1$/, '')
       const response = await fetch(`${baseUrl}/up`)

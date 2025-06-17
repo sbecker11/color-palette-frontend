@@ -1,18 +1,29 @@
 export interface Palette {
-  id: number | string;
-  name: string;
-  description: string;
-  colors: PaletteColor[] | Record<string, any>; // Handle both array and object formats
-  image_id: number | string;
-  imageUrl?: string;
-  createdAt?: string;
-  updatedAt?: string;
+  id: string;
+  paletteName: string;
+  colorPalette: (string | PaletteColor)[];
+  createdDateTime?: string;
+  uploadedURL?: string;
+  imageURL?: string;
+  image_url?: string;
+  uploadedFilePath?: string | null;
+  cachedFilePath?: string;
+  width?: number;
+  height?: number;
+  format?: string;
+  fileSizeBytes?: number;
+  description?: string;
+  image?: {
+    url?: string;
+    width?: number;
+    height?: number;
+  };
 }
 
 export interface PaletteColor {
   id?: string;
   hex: string;
-  rgb?: string;
+  rgb?: string | number[];
   name?: string;
   position?: number;
   percentage?: number;

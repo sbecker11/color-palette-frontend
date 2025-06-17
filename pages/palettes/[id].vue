@@ -12,7 +12,7 @@
     <!-- Palette content -->
     <div v-else-if="palette" class="palette-content">
       <!-- Three-column layout with 10px gaps -->
-      <div class="flex flex-col md:flex-row space-x-0 md:space-x-[10px] space-y-[10px] md:space-y-0 relative w-full h-full bg-gray-100 dark:bg-gray-900 pt-[10px] px-[10px]" ref="columnsContainer">
+      <div class="flex flex-col md:flex-row space-x-0 md:space-x-[10px] space-y-[10px] md:space-y-0 relative w-full h-full bg-gray-100 dark:bg-gray-900 pt-[10px]" ref="columnsContainer">
         <!-- Column 1: Fixed width, palette name and metadata -->
         <div class="w-full md:w-64 flex-shrink-0 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-none h-full overflow-auto">
           <div class="space-y-4">
@@ -23,7 +23,7 @@
               </label>
               <input 
                 id="palette-name" 
-                v-model="palette.name" 
+                v-model="palette.paletteName" 
                 type="text" 
                 class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                 @change="savePalette"
@@ -37,15 +37,6 @@
               </p>
               <p v-if="palette.description" class="text-sm text-gray-800 dark:text-gray-200">
                 <span class="font-medium">Description:</span> {{ palette.description }}
-              </p>
-              <p v-if="palette.image_id" class="text-sm text-gray-600 dark:text-gray-400">
-                <span class="font-medium">Source Image:</span> 
-                <button 
-                  @click="goToImage" 
-                  class="text-blue-600 dark:text-blue-400 hover:underline"
-                >
-                  View Image
-                </button>
               </p>
             </div>
             
@@ -72,7 +63,7 @@
         <div class="w-full md:w-96 flex-shrink-0 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-none h-full overflow-auto">
           <div class="flex items-center justify-between mb-3">
             <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">
-              Colors ({{ palette.colors.length }})
+              Colors ({{ palette.colorPalette.length }})
             </h2>
             
             <!-- Edit Mode / Serial Mode toggle button removed since Add New Colors button serves the same purpose -->
@@ -81,34 +72,35 @@
           <!-- Scrollable color list -->
           <div class="space-y-3 h-[calc(100%-7rem)] overflow-y-auto pr-2 mb-3" ref="colorListRef">
             <div 
-              v-for="color in palette.colors" 
-              :key="color.id" 
-              :data-color-id="color.id"
+              v-for="color in palette.colorPalette" 
+              :key="typeof color === 'object' && color !== null && 'id' in color ? color.id : String(color)"
+              :data-color-id="typeof color === 'object' && color !== null && 'id' in color ? color.id : String(color)"
               class="flex items-center bg-white dark:bg-gray-700 p-3 rounded-md shadow-sm"
             >
               <div 
                 class="w-12 h-12 rounded-md mr-4 shadow-inner cursor-pointer relative"
-                :style="{ backgroundColor: color.hex }"
-                @click="toggleColorSelection(color.id)"
+                :style="{ backgroundColor: typeof color === 'string' ? color : color.hex }"
+                @click="typeof color === 'object' && color !== null && 'id' in color ? toggleColorSelection(color.id) : undefined"
               >
                 <!-- Interior white border for selected color -->
                 <div 
-                  v-if="selectedColorId === color.id" 
+                  v-if="typeof color === 'object' && color !== null && 'id' in color && selectedColorId === color.id" 
                   class="absolute inset-0 rounded-md border border-white pointer-events-none"
                 ></div>
               </div>
               
               <div class="flex-1">
-                <p class="font-medium" v-if="color.name">{{ color.name }}</p>
-                <p class="text-sm text-gray-600 dark:text-gray-400">{{ color.hex }}</p>
-                <p class="text-sm text-gray-600 dark:text-gray-400">{{ color.rgb }}</p>
+                <p class="font-medium" v-if="typeof color === 'object' && color !== null && 'name' in color">{{ color.name }}</p>
+                <p class="text-sm text-gray-600 dark:text-gray-400" v-if="typeof color === 'object' && color !== null && 'hex' in color">{{ color.hex }}</p>
+                <p class="text-sm text-gray-600 dark:text-gray-400" v-if="typeof color === 'object' && color !== null && 'rgb' in color">{{ color.rgb }}</p>
               </div>
               
               <div class="flex space-x-2">
                 <button 
-                  @click="editColor(color)" 
+                  @click="typeof color === 'object' && color !== null ? editColor(color) : undefined" 
                   class="p-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
                   title="Edit color - Open color editor to modify this color's properties"
+                  :disabled="typeof color !== 'object' || color === null"
                 >
                   <span class="sr-only">Edit</span>
                   <!-- Edit icon -->
@@ -118,9 +110,10 @@
                 </button>
                 
                 <button 
-                  @click="removeColor(color.id, $event)" 
+                  @click="typeof color === 'object' && color !== null && 'id' in color ? removeColor(color.id, $event) : undefined" 
                   class="p-2 text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
                   title="Remove color"
+                  :disabled="typeof color !== 'object' || color === null"
                 >
                   <span class="sr-only">Remove</span>
                   <!-- Trash icon -->
@@ -152,7 +145,7 @@
         
         <!-- Column 3: Resizable, image viewer -->
         <div 
-          class="w-full md:flex-1 bg-transparent dark:bg-transparent p-4 rounded-lg shadow-none h-full overflow-auto"
+          class="w-full md:flex-1 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-none h-full overflow-auto"
           ref="imageColumnRef"
         >
           <div class="flex justify-between items-center mb-4">
@@ -528,15 +521,34 @@ const palette = computed(() => currentPalette.value)
 
 // Computed property for image URL with fallback
 const imageUrl = computed(() => {
-  if (!palette.value) return '';
+  if (!palette.value) return ''
   
-  // Use image_id as that's what the API returns
-  if (palette.value.image_id) {
-    return `/api/images/${palette.value.image_id}/file`;
+  // Log the palette object to debug
+  console.log('Palette data for image URL:', palette.value)
+  
+  // Use type assertion with 'as any' to bypass TypeScript checks
+  const paletteData = palette.value as any;
+  
+  // Check for image properties with different possible naming conventions
+  const url = 
+    paletteData.uploadedURL || 
+    paletteData.imageURL || 
+    paletteData.image_url ||
+    paletteData.uploadedFilePath || 
+    paletteData.cachedFilePath ||
+    (paletteData.image && paletteData.image.url) ||
+    ''
+  
+  console.log('Resolved image URL:', url)
+  
+  // If URL is relative, make it absolute
+  if (url && url.startsWith('/')) {
+    const baseUrl = window.location.origin
+    return `${baseUrl}${url}`
   }
   
-  return '';
-});
+  return url
+})
 
 // Function to update the image column width based on window size
 function updateImageColumnWidth() {
@@ -602,12 +614,6 @@ function goBack(): void {
   router.back()
 }
 
-function goToImage(): void {
-  if (!palette.value || !palette.value.image_id) return
-  
-  router.push(`/images/${palette.value.image_id}`)
-}
-
 // Color management functions
 function editColor(color: Color): void {
   // Implement color editing logic
@@ -626,16 +632,29 @@ function removeColor(colorId: string, event: MouseEvent): void {
   
   // Find the color data to display in the modal
   if (palette.value) {
-    const colorToDelete = palette.value.colors.find(color => color.id === colorId)
+    const colorToDelete = palette.value.colorPalette.find(color => typeof color === 'object' && color !== null && 'id' in color && color.id === colorId)
     if (colorToDelete) {
       // Ensure we have complete color data including RGB values
-      colorToDeleteData.value = {
-        ...colorToDelete,
-        // If RGB is a string, parse it to an array for display
-        rgb: typeof colorToDelete.rgb === 'string' 
-          ? parseRgbString(colorToDelete.rgb)
-          : colorToDelete.rgb
-      }
+      colorToDeleteData.value =
+        typeof colorToDelete === 'object' && colorToDelete !== null
+          ? {
+              ...colorToDelete,
+              hex: 'hex' in colorToDelete && colorToDelete.hex ? colorToDelete.hex : '',
+              rgb:
+                'rgb' in colorToDelete && typeof colorToDelete.rgb === 'string'
+                  ? parseRgbString(colorToDelete.rgb)
+                  : 'rgb' in colorToDelete
+                  ? colorToDelete.rgb
+                  : undefined,
+            }
+          : {
+              hex: typeof colorToDelete === 'string' ? colorToDelete : '',
+              rgb: undefined,
+              name: undefined,
+              position: undefined,
+              percentage: undefined,
+              id: undefined,
+            };
     }
   }
   
@@ -653,26 +672,21 @@ async function exportPalette(): Promise<void> {
   if (!palette.value) return
   
   try {
-    // Create a formatted JSON object with palette metadata
     const formattedExport = {
-      name: palette.value.name,
-      description: palette.value.description || '',
-      colors: palette.value.colors.map(color => ({
-        hex: color.hex,
-        rgb: color.rgb,
-        name: color.name || '',
-        position: color.position
-      }))
+      createdDateTime: palette.value.createdDateTime || new Date().toISOString(),
+      uploadedURL: palette.value.uploadedURL || '',
+      uploadedFilePath: palette.value.uploadedFilePath || null,
+      cachedFilePath: palette.value.cachedFilePath || '',
+      width: palette.value.width || 0,
+      height: palette.value.height || 0,
+      format: palette.value.format || '',
+      fileSizeBytes: palette.value.fileSizeBytes || 0,
+      colorPalette: palette.value.colorPalette || [],
+      paletteName: palette.value.paletteName || 'Untitled Palette',
     }
-    
-    // Convert to JSON string with pretty formatting
     const jsonString = JSON.stringify(formattedExport, null, 2)
-    
-    // Create a blob
     const blob = new Blob([jsonString], { type: 'application/json' })
-    
-    // Generate default filename (kebab case of palette name)
-    const defaultFilename = `${palette.value.name.replace(/\s+/g, '-').toLowerCase()}-palette.json`
+    const defaultFilename = `${(palette.value.paletteName || 'palette').replace(/\s+/g, '-').toLowerCase()}-palette.json`
     
     try {
       // Use the File System Access API if available (modern browsers)
@@ -731,11 +745,24 @@ async function exportPalette(): Promise<void> {
 // Handle image loading errors
 function handleImageError(e: Event): void {
   console.error('Image failed to load:', (e.target as HTMLImageElement).src);
+  console.error('Palette data:', palette.value);
   
   // Check if we're already showing the fallback to prevent infinite loops
   const currentSrc = (e.target as HTMLImageElement).src;
   if (currentSrc.includes('data:image/svg')) {
     return; // Already showing fallback, don't try again
+  }
+  
+  // Try to load from API directly if we have an ID
+  if (palette.value && palette.value.id) {
+    const config = useRuntimeConfig();
+    const apiBase = config.public.apiBase || 'http://localhost:3001/api/v1';
+    const fallbackUrl = `${apiBase}/palettes/${palette.value.id}/image`;
+    console.log('Trying fallback image URL:', fallbackUrl);
+    
+    // Try the API endpoint first
+    (e.target as HTMLImageElement).src = fallbackUrl;
+    return;
   }
   
   // Use a data URI for a fallback image - this is guaranteed to work locally
@@ -751,8 +778,8 @@ async function confirmDeleteColor(): Promise<void> {
     const updatedPalette = { ...palette.value }
     
     // Filter out the color to delete
-    updatedPalette.colors = updatedPalette.colors.filter(
-      color => color.id !== colorToDelete.value
+    updatedPalette.colorPalette = updatedPalette.colorPalette.filter(
+      color => typeof color === 'object' && color !== null && 'id' in color && color.id !== colorToDelete.value
     )
     
     // Reset the modal
@@ -774,29 +801,13 @@ async function confirmDeleteColor(): Promise<void> {
 async function fetchPalette(id: string): Promise<void> {
   loading.value = true;
   error.value = null;
-  
+
   try {
-    console.log('Fetching palette with ID:', id);
     await palettesStore.getPalette(id);
-    console.log('Fetch complete, palette:', currentPalette.value);
-    
-    // Debug the palette data
-    if (currentPalette.value) {
-      console.log('Palette data:', {
-        id: currentPalette.value.id,
-        name: currentPalette.value.name,
-        description: currentPalette.value.description,
-        image_id: currentPalette.value.image_id,
-        colors: currentPalette.value.colors?.length || 0
-      });
-    }
-    
-    // Add this check to ensure we have data
     if (!currentPalette.value) {
-      throw new Error('No palette data returned');
+      error.value = 'No palette found with the specified ID.';
     }
   } catch (err: any) {
-    console.error('Error loading palette:', err);
     error.value = 'Failed to load palette. Please try again.';
   } finally {
     loading.value = false;
@@ -1010,11 +1021,11 @@ function addSampledColor() {
   // Create a copy of the palette
   const updatedPalette = { ...palette.value }
   
-  // Ensure colors is an array
-  const colors = Array.isArray(updatedPalette.colors) 
-    ? updatedPalette.colors 
-    : (updatedPalette.colors as Record<string, any>)?.length 
-      ? Object.values(updatedPalette.colors as Record<string, any>) 
+  // Ensure colorPalette is an array
+  const colors = Array.isArray(updatedPalette.colorPalette) 
+    ? updatedPalette.colorPalette 
+    : (updatedPalette.colorPalette as Record<string, any>)?.length 
+      ? Object.values(updatedPalette.colorPalette as Record<string, any>) 
       : []
   
   // If in edit mode and a color is selected, update that color
@@ -1032,7 +1043,7 @@ function addSampledColor() {
       }
       
       // Update the palette with the new colors array
-      updatedPalette.colors = updatedColors
+      updatedPalette.colorPalette = updatedColors
       
       // Store the ID of the updated color to scroll to it
       lastAddedColorId.value = selectedColorId.value
@@ -1063,7 +1074,7 @@ function addSampledColor() {
   }
   
   // Add the new color to the array
-  updatedPalette.colors = [...colors, newColor]
+  updatedPalette.colorPalette = [...colors, newColor]
   
   // Store the ID of the new color to scroll to it
   lastAddedColorId.value = newColorId

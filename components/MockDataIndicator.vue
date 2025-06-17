@@ -268,13 +268,12 @@ async function checkServerStatus() {
 }
 
 // Check API availability on mount
-onMounted(async () => {
-  await checkApiAvailability()
-  
-  // Also check if the API client already knows the availability status
-  const nuxtApp = useNuxtApp()
-  if (nuxtApp.$api && typeof nuxtApp.$api.isAvailable === 'function') {
-    usingMockData.value = !nuxtApp.$api.isAvailable()
-  }
-})
+// onMounted(async () => {
+//   await checkApiAvailability()
+//   // Also check if the API client already knows the availability status
+//   const nuxtApp = useNuxtApp()
+//   if (nuxtApp.$api && typeof nuxtApp.$api.isAvailable === 'function') {
+//     usingMockData.value = !nuxtApp.$api.isAvailable()
+//   }
+// })
 </script>

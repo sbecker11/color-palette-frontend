@@ -46,16 +46,16 @@
       >
         <div class="h-12 flex">
           <div 
-            v-for="color in palette.colors.slice(0, 6)" 
-            :key="color.id"
+            v-for="color in palette.colorPalette.slice(0, 6)" 
+            :key="typeof color === 'object' && color !== null && 'id' in color ? color.id : (typeof color === 'object' && 'hex' in color ? color.hex : String(color))"
             class="flex-1 h-full"
-            :style="{ backgroundColor: color.hex }"
+            :style="{ backgroundColor: typeof color === 'string' ? color : color.hex }"
           ></div>
         </div>
         
         <div class="p-4">
           <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 truncate">
-            {{ palette.name }}
+            {{ palette.paletteName }}
           </h3>
           <p v-if="palette.description" class="text-sm text-gray-500 dark:text-gray-400 mt-1 truncate">
             {{ palette.description }}

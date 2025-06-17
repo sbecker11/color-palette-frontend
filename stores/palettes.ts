@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { useLocalStorage } from '@vueuse/core'
 import type { Palette } from '~/types/palette'
+import type { Ref } from 'vue'
 
 // Define a more specific type for the local storage
 type PaletteRecord = Record<string, Palette>
@@ -9,23 +10,40 @@ type PaletteRecord = Record<string, Palette>
 const localPalettes = useLocalStorage<PaletteRecord>('color-palette-app-palettes', {})
 const localPendingChanges = useLocalStorage<string[]>('color-palette-app-pending-changes', [])
 
+function getOfflineMode(store: any): boolean {
+  // Handles both Ref and boolean for SSR/client hydration edge cases
+  const val = store.offlineMode
+  if (typeof val === 'object' && val !== null && 'value' in val) return val.value
+  return Boolean(val)
+}
+
+function setOfflineMode(store: any, value: boolean) {
+  const val = store.offlineMode
+  if (typeof val === 'object' && val !== null && 'value' in val) val.value = value
+  else store.offlineMode = value
+}
+
 export const usePaletteStore = defineStore('palette', {
-  state: () => ({
-    palettes: [] as Palette[],
-    currentPalette: null as Palette | null,
-    loading: false,
-    error: null as string | null,
-    offlineMode: false,
-    // Add localPendingChanges to the state so it's accessible via $state
-    localPendingChanges: localPendingChanges,
-    // Track if there are unsaved changes in the current session
-    unsavedChanges: {} as Record<string, boolean>,
-    // Add a property to store palettes for the current image
-    palettesForCurrentImage: [] as Palette[]
-  }),
+  state: () => {
+    const offlineMode = useLocalStorage<boolean>('color-palette-app-offline-mode', false)
+    return {
+      palettes: [] as Palette[],
+      currentPalette: null as Palette | null,
+      loading: false,
+      error: null as string | null,
+      offlineMode: offlineMode,
+      // Add localPendingChanges to the state so it's accessible via $state
+      localPendingChanges: localPendingChanges,
+      // Track if there are unsaved changes in the current session
+      unsavedChanges: {} as Record<string, boolean>,
+      // Add a property to store palettes for the current image
+      palettesForCurrentImage: [] as Palette[]
+    }
+  },
   
   getters: {
     hasPendingChanges: (state) => localPendingChanges.value.length > 0,
+    offlineModeValue: (state) => getOfflineMode(state),
     
     // Check if the current palette has unsaved changes
     hasUnsavedChanges: (state) => {
@@ -42,7 +60,7 @@ export const usePaletteStore = defineStore('palette', {
   actions: {
     // Toggle offline mode
     toggleOfflineMode(value: boolean) {
-      this.offlineMode = value
+      setOfflineMode(this, value)
       console.log(`Offline mode ${value ? 'enabled' : 'disabled'}`)
     },
     
@@ -60,42 +78,22 @@ export const usePaletteStore = defineStore('palette', {
     async getPalette(id: string) {
       this.loading = true
       this.error = null
-      
       try {
-        // If in offline mode or we have pending changes, use local data
-        if (this.offlineMode || localPendingChanges.value.includes(id)) {
-          console.log(`Using local data for palette ${id}`)
-          if (localPalettes.value[id]) {
-            this.currentPalette = localPalettes.value[id]
-            this.loading = false
-            return this.currentPalette
-          }
-        }
-        
-        const response = await fetch(`/api/palettes/${id}`)
-        
-        if (!response.ok) {
-          throw new Error(`Failed to fetch palette: ${response.status}`)
-        }
-        
-        const data = await response.json()
-        this.currentPalette = data
-        
-        // Update local storage
-        localPalettes.value[id] = data
-        
-        return this.currentPalette
-      } catch (error) {
-        console.error(`Error fetching palette ${id}:`, error)
-        this.error = 'Failed to fetch palette. Using locally cached data if available.'
-        
-        // Fall back to local data
+        // Always use local data
         if (localPalettes.value[id]) {
           this.currentPalette = localPalettes.value[id]
+          this.loading = false
           return this.currentPalette
+        } else {
+          this.currentPalette = null
+          this.loading = false
+          return null
         }
-        
-        throw error
+      } catch (error) {
+        console.error(`Error fetching palette ${id}:`, error)
+        this.error = 'Failed to fetch palette from local storage.'
+        this.currentPalette = null
+        return null
       } finally {
         this.loading = false
       }
@@ -108,16 +106,16 @@ export const usePaletteStore = defineStore('palette', {
       
       try {
         // If in offline mode, use local data
-        if (this.offlineMode) {
+        if (getOfflineMode(this)) {
           console.log(`Using local data for palettes of image ${imageId}`)
           
           // Create a properly typed array from the local storage object
           const localPalettesArray: Palette[] = [];
           
-          // Iterate through the object and filter manually
+          // Iterate through the object and push all palettes (no image_id check)
           Object.keys(localPalettes.value).forEach(key => {
             const palette = localPalettes.value[key];
-            if (palette && palette.image_id === imageId) {
+            if (palette) {
               localPalettesArray.push(palette);
             }
           });
@@ -154,15 +152,13 @@ export const usePaletteStore = defineStore('palette', {
         
         // Fall back to local data with proper typing
         const localPalettesArray: Palette[] = [];
-          
-        // Iterate through the object and filter manually
+        // Iterate through the object and push all palettes (no image_id check)
         Object.keys(localPalettes.value).forEach(key => {
           const palette = localPalettes.value[key];
-          if (palette && palette.image_id === imageId) {
+          if (palette) {
             localPalettesArray.push(palette);
           }
         });
-        
         this.palettesForCurrentImage = localPalettesArray;
         return this.palettesForCurrentImage;
       } finally {
@@ -172,51 +168,28 @@ export const usePaletteStore = defineStore('palette', {
     
     // Transform API response to match your Palette type
     transformPaletteData(palette: any): Palette {
-      // Ensure we have valid data to work with
       if (!palette || typeof palette !== 'object') {
         console.error('Invalid palette data received:', palette)
         throw new Error('Invalid palette data')
       }
-
-      // Handle RGB format conversion
-      const processRgb = (rgb: any): string => {
-        if (typeof rgb === 'string') return rgb
-        if (Array.isArray(rgb)) return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`
-        return 'rgb(0, 0, 0)' // Default fallback
+      // Process colorPalette
+      const processColorPalette = () => {
+        if (Array.isArray(palette.colorPalette)) return palette.colorPalette
+        if (Array.isArray(palette.colors)) return palette.colors
+        return []
       }
-
-      // Process colors with proper error handling
-      const processColors = () => {
-        if (!Array.isArray(palette.colors)) return []
-        
-        return palette.colors.map((color: any) => {
-          if (!color || typeof color !== 'object') return {
-            id: `temp-${Math.random().toString(36).substring(2, 9)}`,
-            hex: '#000000',
-            rgb: 'rgb(0, 0, 0)',
-            name: '',
-            position: 0
-          }
-          
-          return {
-            id: color.id || `temp-${Math.random().toString(36).substring(2, 9)}`,
-            hex: color.hex || '#000000',
-            rgb: processRgb(color.rgb),
-            name: color.name || '',
-            position: typeof color.position === 'number' ? color.position : 0
-          }
-        })
-      }
-
-      // Create a properly formatted palette object
       return {
         id: (palette.id || '').toString(),
-        name: palette.name || 'Unnamed Palette',
-        image_id: (palette.image_id || '').toString(),
-        imageUrl: palette.image_url || palette.imageUrl || '',
-        colors: processColors(),
-        createdAt: palette.created_at || palette.createdAt || new Date().toISOString(),
-        updatedAt: palette.updated_at || palette.updatedAt || new Date().toISOString(),
+        paletteName: palette.paletteName || palette.name || 'Untitled Palette',
+        colorPalette: processColorPalette(),
+        createdDateTime: palette.createdDateTime || palette.created_at || palette.createdAt || new Date().toISOString(),
+        uploadedURL: palette.uploadedURL || '',
+        uploadedFilePath: palette.uploadedFilePath || null,
+        cachedFilePath: palette.cachedFilePath || '',
+        width: palette.width || 0,
+        height: palette.height || 0,
+        format: palette.format || '',
+        fileSizeBytes: palette.fileSizeBytes || 0,
         description: palette.description || ''
       }
     },
@@ -242,7 +215,7 @@ export const usePaletteStore = defineStore('palette', {
         localPalettes.value[id] = updatedPalette
         
         // If offline, mark as pending and don't try to sync
-        if (this.offlineMode) {
+        if (getOfflineMode(this)) {
           if (!localPendingChanges.value.includes(id)) {
             localPendingChanges.value.push(id)
           }
@@ -299,7 +272,7 @@ export const usePaletteStore = defineStore('palette', {
     
     // Sync pending changes with the backend
     async syncPendingChanges() {
-      if (this.offlineMode || localPendingChanges.value.length === 0) {
+      if (getOfflineMode(this) || localPendingChanges.value.length === 0) {
         return
       }
       
@@ -365,7 +338,7 @@ export const usePaletteStore = defineStore('palette', {
       
       try {
         // If in offline mode, use local data
-        if (this.offlineMode) {
+        if (getOfflineMode(this)) {
           console.log('Using local data for palettes')
           
           // Create a properly typed array from the local storage object

@@ -28,7 +28,7 @@
         class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden"
       >
         <div class="p-4">
-          <h3 class="font-medium text-lg mb-2">{{ palette.name }}</h3>
+          <h3 class="font-medium text-lg mb-2">{{ palette.paletteName }}</h3>
           <p v-if="palette.description" class="text-sm text-gray-600 dark:text-gray-300 mb-2">
             {{ palette.description }}
           </p>
@@ -36,11 +36,11 @@
           <!-- Color swatches -->
           <div class="flex h-8 rounded-md overflow-hidden mb-3">
             <div 
-              v-for="color in palette.colors" 
-              :key="color.id" 
+              v-for="(color, idx) in palette.colorPalette" 
+              :key="typeof color === 'object' && color !== null && 'id' in color ? color.id : (typeof color === 'object' && 'hex' in color ? color.hex : color || idx)" 
               class="flex-1 h-full" 
-              :style="{ backgroundColor: color.hex }"
-              :title="color.name || color.hex"
+              :style="{ backgroundColor: typeof color === 'string' ? color : color.hex }"
+              :title="String(typeof color === 'string' ? color : (color.name || color.hex || color))"
             ></div>
           </div>
           
