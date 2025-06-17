@@ -2,56 +2,52 @@
   <div class="container mx-auto px-4 py-8">
     <div class="flex justify-between items-center mb-6">
       <h1 class="text-3xl font-bold">Image Gallery</h1>
-      <UiButton 
-        @click="router.push('/upload')" 
-        variant="primary"
-      >
-        Upload New Image
-      </UiButton>
-    </div>
-    
-    <!-- Loading state -->
-    <div v-if="imagesStore.isLoading" class="flex justify-center items-center h-64">
-      <p class="text-xl">Loading images...</p>
-    </div>
-    
-    <!-- Error state -->
-    <div v-else-if="imagesStore.error" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-      <p>{{ imagesStore.error }}</p>
-    </div>
-    
-    <!-- Image grid -->
-    <div v-else-if="imagesStore.hasImages" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-      <div 
-        v-for="image in imagesStore.images" 
-        :key="image.id" 
-        class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-200"
-      >
-        <div class="aspect-w-16 aspect-h-12 bg-gray-100">
-          <img 
-            :src="image.url" 
-            :alt="image.name" 
-            class="object-cover w-full h-full cursor-pointer"
-            @click="viewImage(image.id)"
-          />
-        </div>
-        <div class="p-4">
-          <h3 class="font-medium text-gray-900 truncate">{{ image.name }}</h3>
-          <!-- Remove date display since created_at is not in API -->
+      
+      <div class="flex space-x-3">
+        <ClientOnly>
+          <!-- View All Palettes button -->
+          <UiButton 
+            class="bg-green-600 hover:bg-green-700 text-white mr-2"
+            @click="navigateToHome"
+          >
+            View All Palettes
+          </UiButton>
           
-          <!-- Remove color preview section since colors aren't in API -->
+          <UiButton 
+            class="bg-blue-600 hover:bg-blue-700 text-white"
+            @click="navigateToUpload"
+          >
+            Upload New Image
+          </UiButton>
           
-          <div class="mt-3 flex justify-end">
-            <UiButton 
-              size="sm"
-              variant="secondary"
-              @click="viewImage(image.id)"
-            >
-              View
-            </UiButton>
+          <!-- Fallback content for SSR -->
+          <template #fallback>
+            <div class="bg-blue-600 text-white px-4 py-2 rounded cursor-pointer">
+              Upload New Image
+            </div>
+          </template>
+        </ClientOnly>
+      </div>
+    </div>
+    
+    <!-- Display images if available -->
+    <div v-if="imagesStore.hasImages" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div v-for="image in imagesStore.images" :key="image.id" class="overflow-hidden rounded-lg">
+        <!-- Make the entire image clickable -->
+        <div class="relative aspect-w-16 aspect-h-9 cursor-pointer" @click="viewImage(image.id)">
+          <img :src="image.url" :alt="image.name" class="w-full h-full object-cover rounded-lg hover:opacity-90 transition-opacity">
+          
+          <!-- Overlay with image name at the bottom -->
+          <div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white p-2">
+            <h3 class="text-lg font-semibold truncate">{{ image.name }}</h3>
           </div>
         </div>
       </div>
+    </div>
+    
+    <!-- Loading state -->
+    <div v-else-if="imagesStore.isLoading" class="text-center py-12">
+      <p class="text-gray-600">Loading images...</p>
     </div>
     
     <!-- Empty state -->
@@ -59,88 +55,67 @@
       <h2 class="text-xl font-semibold mb-2">No images found</h2>
       <p class="text-gray-600 mb-6">Upload your first image to get started</p>
       <UiButton 
-        variant="primary"
-        @click="router.push('/upload')"
+        class="bg-blue-600 hover:bg-blue-700 text-white"
+        @click="navigateToUpload"
       >
         Upload Image
       </UiButton>
-    </div>
-    
-    <!-- Pagination -->
-    <div v-if="imagesStore.hasImages && imagesStore.totalImages > imagesStore.itemsPerPage" class="mt-8 flex justify-center">
-      <div class="flex space-x-2">
-        <UiButton 
-          variant="secondary" 
-          size="sm"
-          :disabled="imagesStore.currentPage === 1"
-          @click="changePage(imagesStore.currentPage - 1)"
-        >
-          Previous
-        </UiButton>
-        
-        <div v-for="page in totalPages" :key="page" class="inline-block">
-          <UiButton 
-            variant="secondary" 
-            size="sm"
-            :class="page === imagesStore.currentPage ? 'bg-blue-100 text-blue-700' : ''"
-            @click="changePage(page)"
-          >
-            {{ page }}
-          </UiButton>
-        </div>
-        
-        <UiButton 
-          variant="secondary" 
-          size="sm"
-          :disabled="imagesStore.currentPage === totalPages"
-          @click="changePage(imagesStore.currentPage + 1)"
-        >
-          Next
-        </UiButton>
-      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { useImagesStore } from '~/stores/images'
 import { useRouter } from 'vue-router'
+import { useImagesStore } from '~/stores/images'
 
 const router = useRouter()
 const imagesStore = useImagesStore()
 
 // Fetch images when the component is mounted
 onMounted(async () => {
+  console.log('Images page mounted');
+  
   try {
-    await imagesStore.fetchImages()
+    await imagesStore.fetchImages();
+    console.log('STORE IMAGES COUNT:', imagesStore.images.length);
   } catch (error) {
-    console.error('Failed to fetch images:', error)
+    console.error('Error with store fetch:', error);
   }
-})
+});
 
-// Computed property for total pages
-const totalPages = computed(() => {
-  return Math.ceil(imagesStore.totalImages / imagesStore.itemsPerPage)
-})
-
-// Function to change page
-const changePage = async (page: number) => {
-  try {
-    await imagesStore.fetchImages({ page, limit: imagesStore.itemsPerPage })
-  } catch (error) {
-    console.error('Failed to fetch images:', error)
-  }
+// Add navigation to home/palettes
+const navigateToHome = () => {
+  router.push('/')
 }
 
-// Function to view image details - ensure correct path
+const navigateToUpload = () => {
+  router.push('/upload')
+}
+
 const viewImage = (id: string) => {
   router.push(`/images/${id}`)
 }
 
-// Format date function can stay, but we won't use it for image.created_at
-const formatDate = (dateString: string) => {
+// Format date with error handling and flexible parsing
+const formatDate = (dateString: string | number) => {
   if (!dateString) return 'Unknown'
-  const date = new Date(dateString)
-  return date.toLocaleDateString()
+  
+  try {
+    // If it's a number, treat it as a timestamp
+    const date = typeof dateString === 'number' 
+      ? new Date(dateString) 
+      : new Date(dateString)
+    
+    // Check if date is valid before formatting
+    if (isNaN(date.getTime())) {
+      console.warn('Invalid date format received:', dateString)
+      return 'Invalid date format'
+    }
+    
+    return date.toLocaleDateString()
+  } catch (e) {
+    console.error('Error formatting date:', e, dateString)
+    return 'Invalid date format'
+  }
 }
 </script>

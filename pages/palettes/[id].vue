@@ -152,7 +152,7 @@
         
         <!-- Column 3: Resizable, image viewer -->
         <div 
-          class="w-full md:flex-1 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-none h-full overflow-auto"
+          class="w-full md:flex-1 bg-transparent dark:bg-transparent p-4 rounded-lg shadow-none h-full overflow-auto"
           ref="imageColumnRef"
         >
           <div class="flex justify-between items-center mb-4">
@@ -160,8 +160,6 @@
               Source Image
             </h2>
             <div class="flex space-x-2 items-center">
-              <!-- Color sampling toggle checkbox removed -->
-              
               <!-- Zoom In button -->
               <button 
                 @click="zoomIn" 
