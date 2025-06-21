@@ -352,6 +352,7 @@ import { useImagesStore } from '~/stores/images'
 import { storeToRefs } from 'pinia'
 import type { Palette, Color, PaletteColor } from '~/types/palette'
 import ConfirmModal from '~/components/ConfirmModal.vue'
+import UiButton from '~/components/ui/Button.vue'
 
 // Add TypeScript interface augmentation for the File System Access API
 declare global {
@@ -1002,18 +1003,24 @@ function updateColorSelectorAfterScroll() {
   }
 }
 
-// Calculate color selector position accounting for image transforms
+// Calculate color selector position accounting for image transforms and scroll
 function calculateColorSelectorPosition(mouseX: number, mouseY: number) {
   if (!imageContainer.value || !imageRef.value) return { x: 0, y: 0 }
 
   const containerRect = imageContainer.value.getBoundingClientRect()
   const imageRect = imageRef.value.getBoundingClientRect()
   
-  // Position relative to container
-  const relativeX = mouseX - containerRect.left
-  const relativeY = mouseY - containerRect.top
+  // Position relative to the container's VIEWPORT (not scrolled area)
+  const containerRelativeX = mouseX - containerRect.left
+  const containerRelativeY = mouseY - containerRect.top
   
-  // Check if mouse is over the actual image (considering transforms)
+  // CRITICAL FIX: Add scroll offset to position the circle correctly
+  // The color selector is positioned absolutely within the scrollable container,
+  // so we need to add the scroll offset to get the correct position within the scrolled content
+  const scrollAdjustedX = containerRelativeX + imageContainer.value.scrollLeft
+  const scrollAdjustedY = containerRelativeY + imageContainer.value.scrollTop
+  
+  // Check if mouse is actually over the image
   const mouseOverImage = (
     mouseX >= imageRect.left && 
     mouseX <= imageRect.right && 
@@ -1021,13 +1028,15 @@ function calculateColorSelectorPosition(mouseX: number, mouseY: number) {
     mouseY <= imageRect.bottom
   )
   
-  
-  
-  if (mouseOverImage) {
-    return { x: relativeX, y: relativeY }
+  if (!mouseOverImage) {
+    // If mouse is not over image, position color selector at mouse position anyway
+    // This allows for better debugging and user feedback
+    return { x: scrollAdjustedX, y: scrollAdjustedY }
   }
   
-  return { x: relativeX, y: relativeY }
+  // Return the scroll-adjusted position for the color selector overlay
+  // The color selector overlay is positioned absolutely within the scrollable container
+  return { x: scrollAdjustedX, y: scrollAdjustedY }
 }
 
 // OPTIMIZED: Add this function to update the color selector position with better throttling
@@ -1098,17 +1107,62 @@ function getColorAtPosition(): string | null {
       ctx.drawImage(imageRef.value, 0, 0)
     }
 
-    // Get the image container dimensions
-    const rect = imageContainer.value.getBoundingClientRect()
+    // Get container and image rectangles
+    const containerRect = imageContainer.value.getBoundingClientRect()
     const imageRect = imageRef.value.getBoundingClientRect()
-    const relativeX = colorSelectorPosition.value.x - (imageRect.left - rect.left)
-    const relativeY = colorSelectorPosition.value.y - (imageRect.top - rect.top)
+    
+    // COMPLETELY REWRITTEN: Simple and accurate coordinate conversion
+    // Convert mouse position (stored in colorSelectorPosition) to image pixel coordinates
+    
+    // The colorSelectorPosition already includes scroll offset and is positioned correctly
+    // We need to convert this position directly to image coordinates
+    
+    // 1. Get the mouse position relative to the container (already includes scroll offset)
+    const mouseContainerX = colorSelectorPosition.value.x
+    const mouseContainerY = colorSelectorPosition.value.y
+    
+    // 2. We need to subtract the scroll offset since colorSelectorPosition includes it
+    // but we want the position relative to the content, not the container viewport
+    const scrollAdjustedX = mouseContainerX - imageContainer.value.scrollLeft
+    const scrollAdjustedY = mouseContainerY - imageContainer.value.scrollTop
+    
+    // 3. Convert to global coordinates
+    const mouseGlobalX = scrollAdjustedX + containerRect.left
+    const mouseGlobalY = scrollAdjustedY + containerRect.top
+    
+    // 4. Convert to image-relative coordinates (accounting for image transforms)
+    const imageRelativeX = mouseGlobalX - imageRect.left
+    const imageRelativeY = mouseGlobalY - imageRect.top
+    
+    // 5. Convert from visual image coordinates to original image pixel coordinates
+    // The imageRect gives us the actual visual size after transforms
     const scaleX = imageRef.value.naturalWidth / imageRect.width
     const scaleY = imageRef.value.naturalHeight / imageRect.height
-    const pixelX = Math.floor(relativeX * scaleX)
-    const pixelY = Math.floor(relativeY * scaleY)
-    const boundedX = Math.max(0, Math.min(pixelX, imageRef.value.naturalWidth - 1))
-    const boundedY = Math.max(0, Math.min(pixelY, imageRef.value.naturalHeight - 1))
+    
+    const pixelX = imageRelativeX * scaleX
+    const pixelY = imageRelativeY * scaleY
+    
+    // 6. Clamp to image boundaries
+    const boundedX = Math.max(0, Math.min(Math.floor(pixelX), imageRef.value.naturalWidth - 1))
+    const boundedY = Math.max(0, Math.min(Math.floor(pixelY), imageRef.value.naturalHeight - 1))
+    
+    // Only log during clicks, not mouse movements
+    if (window.debugColorSampling) {
+      console.log('🎨🎨🎨 FIXED COLOR SAMPLING CALCULATION 🎨🎨🎨')
+      console.log('🟦 Color Selector Position (includes scroll):', { x: colorSelectorPosition.value.x, y: colorSelectorPosition.value.y })
+      console.log('📜 Container Scroll Offset:', { scrollLeft: imageContainer.value.scrollLeft, scrollTop: imageContainer.value.scrollTop })
+      console.log('🔧 Scroll Adjusted Position:', { x: scrollAdjustedX, y: scrollAdjustedY })
+      console.log('📦 Container Rect:', { left: containerRect.left, top: containerRect.top, width: containerRect.width, height: containerRect.height })
+      console.log('🖼️ Image Rect (with transforms):', { left: imageRect.left, top: imageRect.top, width: imageRect.width, height: imageRect.height })
+      console.log('🌍 Mouse Global Position:', { x: mouseGlobalX, y: mouseGlobalY })
+      console.log('📍 Image Relative Position:', { x: imageRelativeX, y: imageRelativeY })
+      console.log('📐 Image Natural Size:', { width: imageRef.value.naturalWidth, height: imageRef.value.naturalHeight })
+      console.log('📊 Scale Factors:', { scaleX, scaleY })
+      console.log('🎯 Calculated Pixel Position:', { x: pixelX, y: pixelY })
+      console.log('✅ FINAL BOUNDED COORDS:', { x: boundedX, y: boundedY })
+      console.log('🎨🎨🎨 END FIXED CALCULATION 🎨🎨🎨')
+    }
+    
     // Get pixel data
     const pixel = ctx.getImageData(boundedX, boundedY, 1, 1).data
     const hex = `#${pixel[0].toString(16).padStart(2, '0')}${pixel[1].toString(16).padStart(2, '0')}${pixel[2].toString(16).padStart(2, '0')}`
@@ -1274,32 +1328,66 @@ function rgbToHsv(r: number, g: number, b: number): number[] {
   ]
 }
 
-// Update handleImageClick
+// Handle image click events
 function handleImageClick(e: MouseEvent) {
-  // Log position data on click
-  if (showColorSelector.value && imageContainer.value && imageRef.value) {
-    console.log('🧮 Click position calculation:', {
-      mouseGlobal: { x: e.clientX, y: e.clientY },
-      containerScroll: { 
-        scrollTop: imageContainer.value.scrollTop, 
-        scrollLeft: imageContainer.value.scrollLeft 
-      },
-      colorSelectorPosition: colorSelectorPosition.value,
-      imagePosition: imagePosition.value,
-      zoomLevel: zoomLevel.value
-    })
+  // Enable debug logging for this click
+  window.debugColorSampling = true
+  
+  // Check if we're in corner testing mode
+  if (cornerTestingMode.value) {
+    handleCornerTestClick(e)
+    return
   }
   
-  // Only add color on click in serial mode, or when in edit mode with a selected color
-  if (showColorSelector.value && sampledColor.value) {
-    if (samplingState.value.mode === 'serial') {
-      // In serial mode, always add new color on click
-      addSampledColor();
-    } else if (samplingState.value.mode === 'edit' && samplingState.value.selectedColorId) {
-      // In edit mode, only add/update if we have a selected color
-      addSampledColor();
-    }
+  // Log position data on click with detailed coordinates
+  if (showColorSelector.value && imageContainer.value && imageRef.value) {
+    const containerRect = imageContainer.value.getBoundingClientRect()
+    const imageRect = imageRef.value.getBoundingClientRect()
+    
+    console.log('🧮 DETAILED CLICK POSITION ANALYSIS:')
+    console.log('📍 Mouse Global Position:', { x: e.clientX, y: e.clientY })
+    console.log('📦 Container Rect:', { 
+      left: containerRect.left, 
+      top: containerRect.top, 
+      width: containerRect.width, 
+      height: containerRect.height 
+    })
+    console.log('🖼️ Image Rect (with transforms):', { 
+      left: imageRect.left, 
+      top: imageRect.top, 
+      width: imageRect.width, 
+      height: imageRect.height 
+    })
+    console.log('📏 Image Natural Size:', { width: imageRef.value.naturalWidth, height: imageRef.value.naturalHeight })
+    console.log('🔄 Container Scroll:', { scrollTop: imageContainer.value.scrollTop, scrollLeft: imageContainer.value.scrollLeft })
+    console.log('🎯 Color Selector Position:', colorSelectorPosition.value)
+    console.log('🔍 Zoom Level:', zoomLevel.value)
+    console.log('📌 Mouse Relative to Container:', { x: e.clientX - containerRect.left, y: e.clientY - containerRect.top })
+    
+    // Calculate position relative to the image (accounting for transforms)
+    const imageRelativeX = e.clientX - imageRect.left
+    const imageRelativeY = e.clientY - imageRect.top
+    console.log('🎪 Mouse Relative to Image (visual):', { x: imageRelativeX, y: imageRelativeY })
+    
+    // Calculate what pixel should be sampled
+    const scaleX = imageRef.value.naturalWidth / imageRect.width
+    const scaleY = imageRef.value.naturalHeight / imageRect.height
+    const pixelX = Math.round(imageRelativeX * scaleX)
+    const pixelY = Math.round(imageRelativeY * scaleY)
+    console.log('🎯 Should Sample Pixel At:', { x: pixelX, y: pixelY })
+    console.log('📊 Scale Factors:', { scaleX, scaleY })
+    console.log('────────────────────────────────────────────────────────────')
   }
+  
+  // Add sampled color if in sampling mode
+  if (showColorSelector.value && isColorSamplingEnabled.value) {
+    addSampledColor()
+  }
+  
+  // Disable debug logging after a short delay
+  setTimeout(() => {
+    window.debugColorSampling = false
+  }, 100)
 }
 
 // Update handleImageMouseEnter
@@ -1479,6 +1567,177 @@ function trackGlobalMouse(e: MouseEvent) {
   }
 }
 
+// Corner testing mode
+const cornerTestingMode = ref(false)
+const cornerTestStep = ref(0)
+const cornerTestResults = ref([])
+const cornerTestInstructions = [
+  { corner: 'top-left', scrollTo: { top: 'min', left: 'min' }, description: 'Scroll to TOP-LEFT most position and click the TOP-LEFT corner of the image' },
+  { corner: 'top-right', scrollTo: { top: 'min', left: 'max' }, description: 'Scroll to TOP-RIGHT most position and click the TOP-RIGHT corner of the image' },
+  { corner: 'bottom-right', scrollTo: { top: 'max', left: 'max' }, description: 'Scroll to BOTTOM-RIGHT most position and click the BOTTOM-RIGHT corner of the image' },
+  { corner: 'bottom-left', scrollTo: { top: 'max', left: 'min' }, description: 'Scroll to BOTTOM-LEFT most position and click the BOTTOM-LEFT corner of the image' }
+]
+
+// Corner testing functions
+function startCornerTesting() {
+  cornerTestingMode.value = true
+  cornerTestStep.value = 0
+  cornerTestResults.value = []
+  isColorSamplingEnabled.value = true
+  showColorSelector.value = true
+  
+  console.log('🧪 CORNER TESTING MODE STARTED')
+  console.log('📋 Test Plan:', cornerTestInstructions.map(i => i.corner).join(' → '))
+  
+  // Start with first corner
+  nextCornerTest()
+}
+
+function handleCornerTestClick(e: MouseEvent) {
+  if (cornerTestStep.value >= cornerTestInstructions.length) {
+    finishCornerTesting()
+    return
+  }
+  
+  const currentTest = cornerTestInstructions[cornerTestStep.value]
+  const containerRect = imageContainer.value.getBoundingClientRect()
+  const imageRect = imageRef.value.getBoundingClientRect()
+  
+  // Record test result
+  const result = {
+    step: cornerTestStep.value,
+    corner: currentTest.corner,
+    mouseGlobal: { x: e.clientX, y: e.clientY },
+    containerRect: { ...containerRect },
+    imageRect: { ...imageRect },
+    containerScroll: { 
+      top: imageContainer.value.scrollTop, 
+      left: imageContainer.value.scrollLeft 
+    },
+    zoomLevel: zoomLevel.value,
+    mouseRelativeToContainer: { 
+      x: e.clientX - containerRect.left, 
+      y: e.clientY - containerRect.top 
+    },
+    mouseRelativeToImage: { 
+      x: e.clientX - imageRect.left, 
+      y: e.clientY - imageRect.top 
+    },
+    expectedPixel: calculateExpectedPixel(currentTest.corner),
+    timestamp: Date.now()
+  }
+  
+  cornerTestResults.value.push(result)
+  
+  console.log(`🎯 CORNER TEST ${cornerTestStep.value + 1}/4: ${currentTest.corner.toUpperCase()}`)
+  console.log('📊 Test Result:', result)
+  
+  // Add the sampled color
+  addSampledColor()
+  
+  // Move to next test
+  cornerTestStep.value++
+  
+  // Setup next test or finish
+  if (cornerTestStep.value < cornerTestInstructions.length) {
+    setTimeout(() => {
+      nextCornerTest()
+    }, 1000) // Give time for color to be added
+  } else {
+    setTimeout(() => {
+      finishCornerTesting()
+    }, 1000)
+  }
+}
+
+function nextCornerTest() {
+  if (cornerTestStep.value >= cornerTestInstructions.length) {
+    finishCornerTesting()
+    return
+  }
+  
+  const currentTest = cornerTestInstructions[cornerTestStep.value]
+  
+  // Scroll to the required position
+  scrollToCornerPosition(currentTest.scrollTo)
+  
+  // Show instruction
+  console.log(`🎯 STEP ${cornerTestStep.value + 1}/4: ${currentTest.description}`)
+  alert(`CORNER TEST ${cornerTestStep.value + 1}/4\n\n${currentTest.description}\n\nClick OK, then click on the ${currentTest.corner} corner of the image.`)
+}
+
+function scrollToCornerPosition(scrollTo) {
+  if (!imageContainer.value) return
+  
+  const container = imageContainer.value
+  const maxScrollTop = container.scrollHeight - container.clientHeight
+  const maxScrollLeft = container.scrollWidth - container.clientWidth
+  
+  let scrollTop, scrollLeft
+  
+  // Handle top position
+  if (scrollTo.top === 'max') {
+    scrollTop = maxScrollTop
+  } else if (scrollTo.top === 'min') {
+    scrollTop = 0
+  } else {
+    scrollTop = scrollTo.top
+  }
+  
+  // Handle left position  
+  if (scrollTo.left === 'max') {
+    scrollLeft = maxScrollLeft
+  } else if (scrollTo.left === 'min') {
+    scrollLeft = 0
+  } else {
+    scrollLeft = scrollTo.left
+  }
+  
+  container.scrollTop = scrollTop
+  container.scrollLeft = scrollLeft
+  
+  console.log(`📜 Scrolled to: {top: ${scrollTop}, left: ${scrollLeft}} (max: {top: ${maxScrollTop}, left: ${maxScrollLeft}})`)
+}
+
+function calculateExpectedPixel(corner) {
+  if (!imageRef.value) return { x: 0, y: 0 }
+  
+  const width = imageRef.value.naturalWidth
+  const height = imageRef.value.naturalHeight
+  
+  switch (corner) {
+    case 'top-left': return { x: 0, y: 0 }
+    case 'top-right': return { x: width - 1, y: 0 }
+    case 'bottom-right': return { x: width - 1, y: height - 1 }
+    case 'bottom-left': return { x: 0, y: height - 1 }
+    default: return { x: 0, y: 0 }
+  }
+}
+
+function finishCornerTesting() {
+  cornerTestingMode.value = false
+  
+  console.log('🏁 CORNER TESTING COMPLETED!')
+  console.log('📊 All Results:', cornerTestResults.value)
+  
+  // Analyze results
+  analyzeCornerTestResults()
+  
+  alert('Corner testing completed! Check the console for detailed results and analysis.')
+}
+
+function analyzeCornerTestResults() {
+  console.log('🔍 CORNER TEST ANALYSIS:')
+  
+  cornerTestResults.value.forEach((result, index) => {
+    const expected = result.expectedPixel
+    console.log(`\n📍 Test ${index + 1} (${result.corner}):`)
+    console.log(`   Expected pixel: {x: ${expected.x}, y: ${expected.y}}`)
+    console.log(`   Mouse position: {x: ${result.mouseGlobal.x}, y: ${result.mouseGlobal.y}}`)
+    console.log(`   Container scroll: {top: ${result.containerScroll.top}, left: ${result.containerScroll.left}}`)
+    console.log(`   Image rect: {left: ${result.imageRect.left}, top: ${result.imageRect.top}, width: ${result.imageRect.width}, height: ${result.imageRect.height}}`)
+  })
+}
 
 </script>
 
