@@ -1,0 +1,25 @@
+
+ ERROR                                                                                                              7:03:41 AM
+ ERROR(vue-tsc)  Property 'value' does not exist on type '{ x: number; y: number; }'.
+ FILE  /Users/sbecker11/color-palette-app/color-palette-frontend/pages/palettes/[id].vue:269:48
+
+    267 |                 width: '32px',
+    268 |                 height: '32px',
+  > 269 |                 left: ${colorSelectorPosition.value.x - 16}px,
+        |                                                ^^^^^
+    270 |                 top: ${colorSelectorPosition.value.y - 16}px,
+    271 |                 border: '1px solid white',
+    272 |                 boxShadow: '0 0 0 1px rgba(0, 0, 0, 0.5)',
+
+ ERROR(vue-tsc)  Property 'value' does not exist on type '{ x: number; y: number; }'.
+ FILE  /Users/sbecker11/color-palette-app/color-palette-frontend/pages/palettes/[id].vue:270:47
+
+    268 |                 height: '32px',
+    269 |                 left: ${colorSelectorPosition.value.x - 16}px,
+  > 270 |                 top: ${colorSelectorPosition.value.y - 16}px,
+        |                                               ^^^^^
+    271 |                 border: '1px solid white',
+    272 |                 boxShadow: '0 0 0 1px rgba(0, 0, 0, 0.5)',
+    273 |                 backgroundColor: sampledColor,
+
+[vue-tsc] Found 2 errors. Watching for file changes.

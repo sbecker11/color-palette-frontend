@@ -91,9 +91,11 @@ Create a `.env` file in the root directory with the following variables:
 
 ```
 API_BASE_URL=http://localhost:3001/api/v1
+IMAGE_METADATA_JSONL_FILE=/absolute/path/to/your/image_metadata.jsonl
 ```
 
-This configures the frontend to connect to the backend API.
+- `API_BASE_URL`: Configures the frontend to connect to the backend API
+- `IMAGE_METADATA_JSONL_FILE`: Absolute path to the JSONL file containing image metadata
 
 ## Project Structure <a id="project-structure"></a>
 

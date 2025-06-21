@@ -79,12 +79,37 @@ export const usePaletteStore = defineStore('palette', {
       this.loading = true
       this.error = null
       try {
+        console.log('Fetching palette with ID:', id)
+        console.log('Available palettes in local storage:', Object.keys(localPalettes.value))
+        
         // Always use local data
         if (localPalettes.value[id]) {
+          console.log('Found palette in local storage:', id)
           this.currentPalette = localPalettes.value[id]
           this.loading = false
           return this.currentPalette
         } else {
+          // Try to fetch from API if not in offline mode
+          if (!this.offlineMode) {
+            console.log('Palette not found in local storage, trying API')
+            try {
+              const response = await fetch(`/api/palettes/${id}`)
+              if (response.ok) {
+                const data = await response.json()
+                console.log('Palette fetched from API:', data)
+                
+                // Store in local storage for future use
+                localPalettes.value[id] = data
+                this.currentPalette = data
+                this.loading = false
+                return this.currentPalette
+              }
+            } catch (apiError) {
+              console.error('API fetch error:', apiError)
+            }
+          }
+          
+          console.log('Palette not found:', id)
           this.currentPalette = null
           this.loading = false
           return null
@@ -378,6 +403,89 @@ export const usePaletteStore = defineStore('palette', {
         const localPalettesArray: Palette[] = Object.values(localPalettes.value)
         this.palettes = localPalettesArray
         return this.palettes
+      } finally {
+        this.loading = false
+      }
+    },
+    
+    // Import palettes from JSONL data
+    async importPalettesFromJsonl(jsonlData: any[]) {
+      if (!Array.isArray(jsonlData) || jsonlData.length === 0) {
+        console.warn('No valid JSONL data to import')
+        return []
+      }
+      
+      console.log(`Importing ${jsonlData.length} palettes from JSONL data`)
+      
+      // Transform JSONL data to palette format
+      const importedPalettes: Palette[] = jsonlData.map((item, index) => {
+        // Generate a stable ID based on index or use existing ID
+        const id = item.id || `jsonl-${index}-${Date.now()}`
+        
+        return {
+          id: id,
+          paletteName: item.paletteName || item.name || 'Untitled Palette',
+          colorPalette: Array.isArray(item.colorPalette) ? item.colorPalette : 
+                        Array.isArray(item.colors) ? item.colors : [],
+          createdDateTime: item.createdDateTime || item.created_at || new Date().toISOString(),
+          uploadedURL: item.uploadedURL || item.imageURL || item.image_url || '',
+          uploadedFilePath: item.uploadedFilePath || null,
+          cachedFilePath: item.cachedFilePath || '',
+          width: item.width || 0,
+          height: item.height || 0,
+          format: item.format || '',
+          fileSizeBytes: item.fileSizeBytes || 0,
+          description: item.description || ''
+        }
+      })
+      
+      // Store in local storage
+      importedPalettes.forEach(palette => {
+        localPalettes.value[palette.id] = palette
+      })
+      
+      // Update the store state
+      this.palettes = [...this.palettes, ...importedPalettes]
+      
+      console.log(`Successfully imported ${importedPalettes.length} palettes to local storage`)
+      return importedPalettes
+    },
+
+    // Load JSONL file from server
+    async loadJsonlFile() {
+      this.loading = true
+      this.error = null
+      
+      try {
+        const config = useRuntimeConfig()
+        const jsonlFilePath = config.public.imageMetadataJsonlFile
+        
+        if (!jsonlFilePath) {
+          this.error = 'No JSONL file path configured'
+          console.warn('IMAGE_METADATA_JSONL_FILE environment variable is not set')
+          return []
+        }
+        
+        console.log('Loading JSONL file from server:', jsonlFilePath)
+        
+        const response = await fetch('/api/jsonl/metadata')
+        const result = await response.json()
+        
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to load JSONL file')
+        }
+        
+        // Import the data
+        const importedPalettes = await this.importPalettesFromJsonl(result.data)
+        
+        // Force offline mode after import
+        this.toggleOfflineMode(true)
+        
+        return importedPalettes
+      } catch (error) {
+        console.error('Error loading JSONL file:', error)
+        this.error = `Failed to load JSONL file: ${error.message}`
+        return []
       } finally {
         this.loading = false
       }

@@ -119,6 +119,8 @@ declare module 'nuxt/schema' {
   }
   interface PublicRuntimeConfig {
    apiBase: string,
+
+   imageMetadataJsonlFile: string,
   }
 }
 declare module 'vue' {

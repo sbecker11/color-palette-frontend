@@ -10,7 +10,11 @@
     </div>
     
     <!-- Palette content -->
-    <div v-else-if="palette" class="palette-content">
+    <div v-else-if="palette && imageData" class="palette-content">
+      <!-- Show a message if color sampling is blocked for this image -->
+      <div v-if="samplingBlocked" class="bg-yellow-100 dark:bg-yellow-900/30 p-3 rounded mb-4 text-yellow-800 dark:text-yellow-300">
+        Color sampling is not available for this image due to browser security restrictions (CORS).
+      </div>
       <!-- Three-column layout with 10px gaps -->
       <div class="flex flex-col md:flex-row space-x-0 md:space-x-[10px] space-y-[10px] md:space-y-0 relative w-full h-full bg-gray-100 dark:bg-gray-900 pt-[10px]" ref="columnsContainer">
         <!-- Column 1: Fixed width, palette name and metadata -->
@@ -45,6 +49,7 @@
               <button 
                 @click="goBack" 
                 class="w-full px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-md transition-colors"
+                title="Back - Return to the previous page or palette list"
               >
                 Back
               </button>
@@ -52,6 +57,7 @@
               <button 
                 @click="exportPalette" 
                 class="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors"
+                title="Export Palette - Download the palette as a JSON file to save or share"
               >
                 Export Palette
               </button>
@@ -79,20 +85,29 @@
             >
               <div 
                 class="w-12 h-12 rounded-md mr-4 shadow-inner cursor-pointer relative"
-                :style="{ backgroundColor: typeof color === 'string' ? color : color.hex }"
+                :style="{ backgroundColor: typeof color === 'string' ? color : color.hex, border: (samplingState.selectedColorId === (typeof color === 'object' && color !== null && 'id' in color ? color.id : '')) ? '2px solid #2563eb' : '1px solid #e5e7eb' }"
                 @click="typeof color === 'object' && color !== null && 'id' in color ? toggleColorSelection(color.id) : undefined"
               >
                 <!-- Interior white border for selected color -->
                 <div 
-                  v-if="typeof color === 'object' && color !== null && 'id' in color && selectedColorId === color.id" 
-                  class="absolute inset-0 rounded-md border border-white pointer-events-none"
+                  v-if="typeof color === 'object' && color !== null && 'id' in color && samplingState.selectedColorId === color.id" 
+                  class="absolute inset-0 rounded-md border-2 border-blue-500 pointer-events-none"
                 ></div>
               </div>
               
               <div class="flex-1">
+                <!-- Display color name if available -->
                 <p class="font-medium" v-if="typeof color === 'object' && color !== null && 'name' in color">{{ color.name }}</p>
-                <p class="text-sm text-gray-600 dark:text-gray-400" v-if="typeof color === 'object' && color !== null && 'hex' in color">{{ color.hex }}</p>
-                <p class="text-sm text-gray-600 dark:text-gray-400" v-if="typeof color === 'object' && color !== null && 'rgb' in color">{{ color.rgb }}</p>
+                
+                <!-- Always display hex value -->
+                <p class="text-sm text-gray-600 dark:text-gray-400">
+                  {{ typeof color === 'string' ? color : (color.hex || color) }}
+                </p>
+                
+                <!-- Display RGB value if available -->
+                <p class="text-sm text-gray-600 dark:text-gray-400" v-if="typeof color === 'object' && color !== null && 'rgb' in color">
+                  {{ Array.isArray(color.rgb) ? `RGB(${color.rgb.join(', ')})` : color.rgb }}
+                </p>
               </div>
               
               <div class="flex space-x-2">
@@ -129,16 +144,15 @@
           <button 
             @click="toggleSerialMode" 
             class="w-full py-2 border-2 rounded-md transition-colors"
-            :class="serialSwatchMode 
-              ? 'border-blue-400 dark:border-blue-300 bg-blue-500 dark:bg-blue-600 text-white' 
-              : 'border-dashed border-gray-300 dark:border-gray-500 text-gray-600 dark:text-gray-300 hover:border-blue-400 dark:hover:border-blue-300 hover:text-blue-500 dark:hover:text-blue-300'"
+            :class="isSerialMode ? 'border-blue-400 dark:border-blue-300 bg-blue-500 dark:bg-blue-600 text-white' : 'border-dashed border-gray-300 dark:border-gray-500 text-gray-600 dark:text-gray-300 hover:border-blue-400 dark:hover:border-blue-300 hover:text-blue-500 dark:hover:text-blue-300'"
+            :title="isSerialMode ? 'Exit Serial Mode - Stop adding colors and return to normal viewing mode' : 'Add Colors (Serial Mode) - Click to enable color sampling mode where you can click on the image to add colors to the palette'"
           >
             <span class="flex items-center justify-center">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
                 <!-- Original size plus sign -->
                 <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
               </svg>
-              {{ serialSwatchMode ? 'Adding New Colors (Click to Exit)' : 'Add New Colors' }}
+              {{ isSerialMode ? 'Exit Serial Mode' : 'Add Colors (Serial Mode)' }}
             </span>
           </button>
         </div>
@@ -226,50 +240,91 @@
           </div>
           
           <div 
-            class="relative h-[calc(100%-60px)] overflow-auto bg-gray-200 dark:bg-gray-700 rounded-lg flex justify-center items-center" 
+            class="relative h-[calc(100%-60px)] overflow-auto bg-gray-200 dark:bg-gray-700 rounded-lg" 
             ref="imageContainer"
             @mouseenter="handleImageMouseEnter"
             @mouseleave="handleImageMouseLeave"
-            @mousemove="updateColorSelectorPosition"
+            @mousemove="handleMouseMove"
+            @scroll="handleScroll"
+            @wheel.passive="handleWheel"
             @click="handleImageClick"
-            :style="{ cursor: isPanModeActive ? 'grab !important' : 'default !important' }"
+            :class="{ 
+              'cursor-grab': isPanModeActive && !isDraggingImage,
+              'cursor-grabbing': isPanModeActive && isDraggingImage,
+              'cursor-crosshair': isColorSamplingEnabled && !isPanModeActive
+            }"
           >
-            <img 
-              v-if="imageUrl" 
-              :src="imageUrl" 
-              alt="Palette source image" 
-              class="transform max-w-none pixel-perfect"
-              ref="imageRef"
-              @error="handleImageError"
-              :style="{ transform: `scale(${zoomLevel})` }"
-            />
+            <!-- Large scrollable area (3x zoomed image size) to allow scrolling in all directions -->
+            <div 
+              v-if="uploadedURL"
+              class="relative"
+              :style="{
+                                                                                                  width: imageRef?.naturalWidth ? `${IMAGE_CONTAINER_SIZE_MULTIPLIER * zoomLevel * imageRef.naturalWidth}px` : `${IMAGE_CONTAINER_SIZE_MULTIPLIER * 100}%`,
+          height: imageRef?.naturalHeight ? `${IMAGE_CONTAINER_SIZE_MULTIPLIER * zoomLevel * imageRef.naturalHeight}px` : `${IMAGE_CONTAINER_SIZE_MULTIPLIER * 100}%`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }"
+            >
+              <img 
+                :src="uploadedURL" 
+                alt="Palette source image" 
+                class="transform max-w-none pixel-perfect"
+                ref="imageRef"
+                @load="handleImageLoaded"
+                @error="handleImageError"
+                crossorigin="anonymous"
+                :style="{ 
+                  transform: `scale(${zoomLevel})`,
+                  transformOrigin: 'center center'
+                }"
+              />
+            </div>
             <div v-else class="flex items-center justify-center h-full">
               <p class="text-gray-500 dark:text-gray-400">No image available</p>
             </div>
             
-            <!-- Color selector overlay - only show when showColorSelector is true AND not in pan mode -->
+            <!-- Color selector overlay - simplified to show only color swatch -->
             <div 
-              v-if="showColorSelector && imageUrl && !isPanModeActive && colorSamplingEnabled" 
-              class="color-selector-overlay absolute pointer-events-none border border-white"
+              v-if="showColorSelector"
+              class="color-selector-overlay absolute pointer-events-none"
               :style="{
-                width: '32px',
-                height: '32px',
-                left: `${colorSelectorPosition.x - 16}px`,
-                top: `${colorSelectorPosition.y - 16}px`,
-                backgroundColor: sampledColor || 'transparent',
-                opacity: 0.7,
-                boxShadow: '0 0 0 1px rgba(0, 0, 0, 0.5)',
-                zIndex: 10
+                width: '24px',
+                height: '24px',
+                left: `${colorSelectorPosition.x - 12}px`,
+                top: `${colorSelectorPosition.y - 12}px`,
+                border: '2px solid white',
+                boxShadow: '0 0 0 1px rgba(0, 0, 0, 0.8)',
+                backgroundColor: sampledColor,
+                zIndex: 10,
+                borderRadius: '50%', // circular
+                position: 'absolute',
+                pointerEvents: 'none',
               }"
-            ></div>
+            >
+              <!-- No text content - just the color swatch -->
+            </div>
           </div>
         </div>
       </div>
     </div>
     
-    <!-- No palette found -->
-    <div v-else class="bg-yellow-100 dark:bg-yellow-900/30 p-4 rounded-lg my-4">
+    <!-- No palette found (only show if we've finished loading and there's no error) -->
+    <div v-else-if="!loading && !error" class="bg-yellow-100 dark:bg-yellow-900/30 p-4 rounded-lg my-4">
       <p class="text-yellow-700 dark:text-yellow-400">No palette found with the specified ID.</p>
+      
+      <div v-if="showCreateSampleButton" class="mt-4">
+        <button 
+          @click="createSamplePalette(route.params.id?.toString() || '')"
+          class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded transition"
+          title="Create Sample Palette - Generate a demo palette with sample colors for testing and demonstration purposes"
+        >
+          Create Sample Palette
+        </button>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mt-2">
+          This will create a sample palette with this ID for demonstration purposes.
+        </p>
+      </div>
     </div>
     
     <!-- Delete confirmation modal -->
@@ -293,7 +348,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { usePaletteStore } from '~/stores/palettes'
+import { useImagesStore } from '~/stores/images'
 import { storeToRefs } from 'pinia'
 import type { Palette, Color, PaletteColor } from '~/types/palette'
 import ConfirmModal from '~/components/ConfirmModal.vue'
@@ -317,12 +372,15 @@ declare global {
 const route = useRoute()
 const router = useRouter()
 
+// Configuration constants
+const IMAGE_CONTAINER_SIZE_MULTIPLIER = 2 // How many times larger the scrollable imageContainer should be compared to the scaled image
+
 // Store
-const palettesStore = usePaletteStore()
-const { currentPalette } = storeToRefs(palettesStore)
+const imagesStore = useImagesStore()
+const imageData = ref<any>(null)
 
 // Local state
-const loading = ref(false)
+const loading = ref(true) // Start with loading state on page load
 const error = ref<string | null>(null)
 const imageRef = ref<HTMLImageElement | null>(null)
 const imageContainer = ref<HTMLDivElement | null>(null)
@@ -338,13 +396,15 @@ const lastMousePosition = ref({ x: 0, y: 0 })
 const imagePosition = ref({ x: 0, y: 0 })
 const showColorSelector = ref(false)
 const colorSelectorPosition = ref({ x: 0, y: 0 })
-const selectedColorId = ref<string | null>(null)
+const lastMousePositionGlobal = ref({ x: 0, y: 0 }) // Track global mouse position for scroll events
 const sampledColor = ref<string>('')
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 const colorListRef = ref<HTMLDivElement | null>(null)
 const lastAddedColorId = ref<string | null>(null)
-const serialSwatchMode = ref(false)
-const colorSamplingEnabled = ref(false)
+const samplingState = ref({
+  mode: 'none' as 'none' | 'edit' | 'serial', // Modes: 'none', 'edit', 'serial'
+  selectedColorId: null as string | null,
+})
 
 // Dark mode detection
 const isDarkMode = ref(false)
@@ -354,76 +414,28 @@ function checkDarkMode() {
   isDarkMode.value = document.documentElement.classList.contains('dark')
 }
 
-// Image pan/move functions
+// Pan mode is now replaced by natural scrolling
 function togglePanMode(): void {
-  isPanModeActive.value = !isPanModeActive.value;
-  
-  // Set cursor style based on pan mode
-  if (imageContainer.value) {
-    imageContainer.value.style.cursor = isPanModeActive.value ? 'grab' : 'default';
-  }
-  
-  // Reset position when turning off pan mode
-  if (!isPanModeActive.value) {
-    imagePosition.value = { x: 0, y: 0 };
-    if (imageRef.value) {
-      imageRef.value.style.transform = `scale(${zoomLevel.value})`;
-    }
-  }
+  // Pan mode functionality is replaced by native scrolling
+  // This function is kept for UI compatibility but does nothing
+  console.log('Pan mode is now handled by native scrolling')
 }
 
-function startImageDrag(e: MouseEvent): void {
-  if (!isPanModeActive.value) return;
-  
-  isDraggingImage.value = true;
-  lastMousePosition.value = { x: e.clientX, y: e.clientY };
-  
-  // Change cursor to grabbing when actively dragging
-  if (imageContainer.value) {
-    imageContainer.value.style.cursor = 'grabbing';
-  }
-}
-
-function dragImage(e: MouseEvent): void {
-  if (!isDraggingImage.value) return;
-  
-  const deltaX = e.clientX - lastMousePosition.value.x;
-  const deltaY = e.clientY - lastMousePosition.value.y;
-  
-  imagePosition.value = {
-    x: imagePosition.value.x + deltaX,
-    y: imagePosition.value.y + deltaY
-  };
-  
-  lastMousePosition.value = { x: e.clientX, y: e.clientY };
-  
-  if (imageRef.value) {
-    imageRef.value.style.transform = `translate(${imagePosition.value.x}px, ${imagePosition.value.y}px) scale(${zoomLevel.value})`;
-  }
-}
-
-function stopImageDrag(): void {
-  if (!isDraggingImage.value) return;
-  
-  isDraggingImage.value = false;
-  
-  // Reset cursor to grab when done dragging (if still in pan mode)
-  if (isPanModeActive.value && imageContainer.value) {
-    imageContainer.value.style.cursor = 'grab';
-  }
-}
-
-// Modified zoom functions to use integer scaling for clearer pixels
+// Modified zoom functions with smooth, predictable scaling
 function zoomIn(): void {
-  // Use larger steps for more noticeable pixel boundaries
-  zoomLevel.value = Math.ceil(zoomLevel.value * 1.5)
+  // Use consistent 1.5x multiplier for smooth zooming
+  zoomLevel.value = Math.round(zoomLevel.value * 1.5 * 10) / 10 // Round to 1 decimal place
   updateImageTransform()
+  // Recenter the scrolling container after zoom
+  setTimeout(() => centerScrollPosition(), 10)
 }
 
 function zoomOut(): void {
-  // Use integer division for clearer pixels when zooming out
-  zoomLevel.value = Math.max(Math.floor(zoomLevel.value / 1.5), 1)
+  // Use consistent 1.5x divisor for smooth zooming (reversible)
+  zoomLevel.value = Math.max(Math.round((zoomLevel.value / 1.5) * 10) / 10, 0.1) // Min zoom 0.1x
   updateImageTransform()
+  // Recenter the scrolling container after zoom
+  setTimeout(() => centerScrollPosition(), 10)
 }
 
 function fitImage(): void {
@@ -444,6 +456,8 @@ function fitImage(): void {
   // Reset position when fitting image
   imagePosition.value = { x: 0, y: 0 }
   updateImageTransform()
+  // Recenter the scrolling container after zoom
+  setTimeout(() => centerScrollPosition(), 10)
 }
 
 function fillImage(): void {
@@ -461,21 +475,48 @@ function fillImage(): void {
   // Use the larger ratio to ensure the image fills the container
   zoomLevel.value = Math.max(widthRatio, heightRatio)
   
-  // Reset position when filling image
-  imagePosition.value = { x: 0, y: 0 }
   updateImageTransform()
+  // Recenter the scrolling container after zoom
+  setTimeout(() => centerScrollPosition(), 10)
 }
 
 function updateImageTransform(): void {
   if (imageRef.value) {
-    if (isPanModeActive.value) {
-      imageRef.value.style.transform = `translate(${imagePosition.value.x}px, ${imagePosition.value.y}px) scale(${zoomLevel.value})`
-    } else {
-      imageRef.value.style.transform = `scale(${zoomLevel.value})`
-    }
+    imageRef.value.style.transform = `scale(${zoomLevel.value})`
+    imageRef.value.style.transformOrigin = 'center center'
+  }
+}
+
+// Center the scroll position to show the image in the middle
+function centerScrollPosition(): void {
+  if (imageContainer.value && imageRef.value) {
+    const container = imageContainer.value
+    const image = imageRef.value
     
-    // Log the current transform for debugging
-    console.log('Image transform updated:', imageRef.value.style.transform)
+    // Calculate the actual size of the wrapper div (IMAGE_CONTAINER_SIZE_MULTIPLIER * zoomLevel * image dimensions)
+    const wrapperWidth = IMAGE_CONTAINER_SIZE_MULTIPLIER * zoomLevel.value * image.naturalWidth
+    const wrapperHeight = IMAGE_CONTAINER_SIZE_MULTIPLIER * zoomLevel.value * image.naturalHeight
+    
+    // Calculate the center position
+    // If wrapper is larger than container, scroll to center
+    // If wrapper is smaller than container, scroll to 0 (no scrolling needed)
+    const centerX = wrapperWidth > container.clientWidth 
+      ? (wrapperWidth - container.clientWidth) / 2 
+      : 0
+    const centerY = wrapperHeight > container.clientHeight 
+      ? (wrapperHeight - container.clientHeight) / 2 
+      : 0
+    
+    // Set scroll position to center
+    container.scrollLeft = centerX
+    container.scrollTop = centerY
+    
+    console.log('Centering scroll:', {
+      wrapperSize: { width: wrapperWidth, height: wrapperHeight },
+      containerSize: { width: container.clientWidth, height: container.clientHeight },
+      scrollTo: { left: centerX, top: centerY },
+      zoomLevel: zoomLevel.value
+    })
   }
 }
 
@@ -486,15 +527,13 @@ onMounted(() => {
   const observer = new MutationObserver(checkDarkMode)
   observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
   
-  // Set up image drag event listeners
-  document.addEventListener('mousemove', dragImage)
-  document.addEventListener('mouseup', stopImageDrag)
+  // Pan mode replaced by native scrolling - no drag listeners needed
   
-  // Fetch palette data and set up resize listener
-  const paletteId = route.params.id?.toString();
-  console.log('Component mounted, palette ID:', paletteId);
-  if (paletteId) {
-    fetchPalette(paletteId);
+  // Fetch image data and set up resize listener
+  const imageId = route.params.id?.toString();
+  console.log('Component mounted, image ID:', imageId);
+  if (imageId) {
+    fetchImage(imageId);
     // Set up resize listener after data is loaded
     setupResizeListener();
   }
@@ -508,45 +547,73 @@ onUnmounted(() => {
     observer.disconnect();
   });
   
-  // Clean up image drag event listeners
-  document.removeEventListener('mousemove', dragImage)
-  document.removeEventListener('mouseup', stopImageDrag)
+  // No drag listeners to clean up
   
   // Clean up resize listener
   window.removeEventListener('resize', updateImageColumnWidth);
 })
 
 // Computed properties
-const palette = computed(() => currentPalette.value)
+const palette = computed(() => {
+  if (!imageData.value) return null
+  return {
+    id: imageData.value.id,
+    paletteName: imageData.value.name,
+    description: imageData.value.description,
+    colorPalette: imageData.value.colorPalette || [],
+    createdDateTime: imageData.value.created_at,
+    uploadedURL: imageData.value.url,
+    uploadedFilePath: null,
+    cachedFilePath: imageData.value.file_path,
+    width: imageData.value.width,
+    height: imageData.value.height,
+    format: imageData.value.content_type?.split('/')[1] || '',
+    fileSizeBytes: imageData.value.file_size || 0
+  }
+})
 
-// Computed property for image URL with fallback
-const imageUrl = computed(() => {
-  if (!palette.value) return ''
+const uploadedURL = computed(() => {
+  const imageId = route.params.id?.toString();
+  if (!imageId) return ''
   
-  // Log the palette object to debug
-  console.log('Palette data for image URL:', palette.value)
-  
-  // Use type assertion with 'as any' to bypass TypeScript checks
-  const paletteData = palette.value as any;
-  
-  // Check for image properties with different possible naming conventions
-  const url = 
-    paletteData.uploadedURL || 
-    paletteData.imageURL || 
-    paletteData.image_url ||
-    paletteData.uploadedFilePath || 
-    paletteData.cachedFilePath ||
-    (paletteData.image && paletteData.image.url) ||
-    ''
-  
-  console.log('Resolved image URL:', url)
-  
-  // If URL is relative, make it absolute
-  if (url && url.startsWith('/')) {
-    const baseUrl = window.location.origin
-    return `${baseUrl}${url}`
+  // First priority: Use the file_path from imageData (the real local images)
+  if (imageData.value && imageData.value.file_path) {
+    console.log('Using file_path from imageData:', imageData.value.file_path)
+    return imageData.value.file_path
   }
   
+  // Second priority: Use the real image URL from the images store
+  const image = imagesStore.images.find(img => img.id === imageId)
+  if (image?.url) {
+    console.log('Using real image URL from store:', image.url)
+    return image.url
+  }
+  
+  // Second priority: Check for cached file path and convert to web URL
+  if (image?.cachedFilePath) {
+    // Convert absolute path to relative web URL
+    // From: /Users/.../public/images/img-xxx.jpeg
+    // To: /images/img-xxx.jpeg
+    const webUrl = image.cachedFilePath.replace(/.*\/public/, '')
+    console.log('Using cached file path as web URL:', webUrl)
+    return webUrl
+  }
+  
+  // Third priority: Try the direct URL from the API response
+  if (imageData.value && imageData.value.url) {
+    console.log('Using direct URL from imageData:', imageData.value.url)
+    return imageData.value.url
+  }
+  
+  // Fourth priority: Try the uploaded URL from palette
+  if (palette.value && palette.value.uploadedURL) {
+    console.log('Using palette uploadedURL:', palette.value.uploadedURL)
+    return palette.value.uploadedURL
+  }
+  
+  // Last resort: Use the file endpoint (artificial images)
+  const url = `/api/images/${imageId}/file`
+  console.log('Using file endpoint URL as fallback:', url)
   return url
 })
 
@@ -615,49 +682,33 @@ function goBack(): void {
 }
 
 // Color management functions
+const showEditModal = ref(false)
+const colorToEdit = ref<Color | null>(null)
 function editColor(color: Color): void {
-  // Implement color editing logic
-  console.log('Editing color:', color)
-  // This could open a modal with color editing controls
+  colorToEdit.value = color
+  showEditModal.value = true
+}
+function closeEditModal() {
+  showEditModal.value = false
+  colorToEdit.value = null
 }
 
 function removeColor(colorId: string, event: MouseEvent): void {
+  console.log('removeColor called for colorId:', colorId)
   colorToDelete.value = colorId
-  
-  // Capture the position of the click
-  deleteButtonPosition.value = {
-    x: event.clientX,
-    y: event.clientY
-  }
-  
-  // Find the color data to display in the modal
+  deleteButtonPosition.value = { x: event.clientX, y: event.clientY }
   if (palette.value) {
-    const colorToDelete = palette.value.colorPalette.find(color => typeof color === 'object' && color !== null && 'id' in color && color.id === colorId)
+    const colorToDelete = palette.value.colorPalette.find(
+      color => typeof color === 'object' && color !== null && 'id' in color && color.id === colorId
+    )
     if (colorToDelete) {
-      // Ensure we have complete color data including RGB values
-      colorToDeleteData.value =
-        typeof colorToDelete === 'object' && colorToDelete !== null
-          ? {
-              ...colorToDelete,
-              hex: 'hex' in colorToDelete && colorToDelete.hex ? colorToDelete.hex : '',
-              rgb:
-                'rgb' in colorToDelete && typeof colorToDelete.rgb === 'string'
-                  ? parseRgbString(colorToDelete.rgb)
-                  : 'rgb' in colorToDelete
-                  ? colorToDelete.rgb
-                  : undefined,
-            }
-          : {
-              hex: typeof colorToDelete === 'string' ? colorToDelete : '',
-              rgb: undefined,
-              name: undefined,
-              position: undefined,
-              percentage: undefined,
-              id: undefined,
-            };
+      if (typeof colorToDelete === 'object' && colorToDelete !== null) {
+        colorToDeleteData.value = { ...colorToDelete }
+      } else {
+        colorToDeleteData.value = { hex: String(colorToDelete) }
+      }
     }
   }
-  
   showDeleteConfirm.value = true
 }
 
@@ -744,32 +795,24 @@ async function exportPalette(): Promise<void> {
 
 // Handle image loading errors
 function handleImageError(e: Event): void {
-  console.error('Image failed to load:', (e.target as HTMLImageElement).src);
-  console.error('Palette data:', palette.value);
-  
-  // Check if we're already showing the fallback to prevent infinite loops
-  const currentSrc = (e.target as HTMLImageElement).src;
-  if (currentSrc.includes('data:image/svg')) {
-    return; // Already showing fallback, don't try again
-  }
-  
-  // Try to load from API directly if we have an ID
-  if (palette.value && palette.value.id) {
-    const config = useRuntimeConfig();
-    const apiBase = config.public.apiBase || 'http://localhost:3001/api/v1';
-    const fallbackUrl = `${apiBase}/palettes/${palette.value.id}/image`;
-    console.log('Trying fallback image URL:', fallbackUrl);
+  try {
+    const imgElement = e.target as HTMLImageElement;
+    const imgSrc = imgElement.src;
+    // Log the error with more details
+    console.error('Image failed to load:', imgSrc);
+    console.log('Route params:', route.params);
+    console.log('ImageData:', imageData.value);
+    console.log('Palette:', palette.value);
     
-    // Try the API endpoint first
-    (e.target as HTMLImageElement).src = fallbackUrl;
-    return;
+    // Use a data URI for a fallback image
+    imgElement.src = 'data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22800%22%20height%3D%22600%22%20viewBox%3D%220%200%20800%20600%22%3E%3Crect%20fill%3D%22%23f0f0f0%22%20width%3D%22800%22%20height%3D%22600%22%2F%3E%3Ctext%20fill%3D%22%23999999%22%20font-family%3D%22Arial%2C%20sans-serif%22%20font-size%3D%2224%22%20text-anchor%3D%22middle%22%20x%3D%22400%22%20y%3D%22300%22%3EImage%20Not%20Available%3C%2Ftext%3E%3C%2Fsvg%3E';
+  } catch (err) {
+    console.log('Error in handleImageError:', err);
   }
-  
-  // Use a data URI for a fallback image - this is guaranteed to work locally
-  (e.target as HTMLImageElement).src = 'data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22800%22%20height%3D%22600%22%20viewBox%3D%220%200%20800%20600%22%3E%3Crect%20fill%3D%22%23f0f0f0%22%20width%3D%22800%22%20height%3D%22600%22%2F%3E%3Ctext%20fill%3D%22%23999999%22%20font-family%3D%22Arial%2C%20sans-serif%22%20font-size%3D%2224%22%20text-anchor%3D%22middle%22%20x%3D%22400%22%20y%3D%22300%22%3EImage%20Not%20Available%3C%2Ftext%3E%3C%2Fsvg%3E';
 }
 
 // Function to confirm and execute color deletion
+// OPTIMIZED: Remove excessive logging and improve performance
 async function confirmDeleteColor(): Promise<void> {
   if (!colorToDelete.value || !palette.value) return
   
@@ -779,14 +822,20 @@ async function confirmDeleteColor(): Promise<void> {
     
     // Filter out the color to delete
     updatedPalette.colorPalette = updatedPalette.colorPalette.filter(
-      color => typeof color === 'object' && color !== null && 'id' in color && color.id !== colorToDelete.value
+      color => !(typeof color === 'object' && color !== null && 'id' in color && color.id === colorToDelete.value)
     )
+    
+    // Update local imageData immediately for fast UI updates
+    if (imageData.value) {
+      imageData.value = { ...imageData.value, colorPalette: updatedPalette.colorPalette };
+    }
     
     // Reset the modal
     showDeleteConfirm.value = false
     
-    // Call the store to update the palette - ensure ID is a string
-    await palettesStore.updatePalette(String(updatedPalette.id), updatedPalette)
+    // Update store in background (non-blocking)
+    imagesStore.updateImage(String(updatedPalette.id), updatedPalette)
+      .catch(err => console.error('Error updating store after delete:', err));
     
     // Reset the color to delete
     colorToDelete.value = null
@@ -797,18 +846,25 @@ async function confirmDeleteColor(): Promise<void> {
   }
 }
 
-// Fetch the palette data
-async function fetchPalette(id: string): Promise<void> {
+// Fetch the image data by image_id
+async function fetchImage(imageId: string): Promise<void> {
   loading.value = true;
   error.value = null;
-
+  imageData.value = null;
   try {
-    await palettesStore.getPalette(id);
-    if (!currentPalette.value) {
-      error.value = 'No palette found with the specified ID.';
+    // Ensure images store is loaded first
+    await imagesStore.fetchImages();
+    
+    if (imagesStore.getImage) {
+      const img = await imagesStore.getImage(imageId)
+      if (img) {
+        imageData.value = img
+      } else {
+        error.value = 'No image found with the specified ID.'
+      }
     }
   } catch (err: any) {
-    error.value = 'Failed to load palette. Please try again.';
+    error.value = 'Failed to load image. Please try again.';
   } finally {
     loading.value = false;
   }
@@ -816,22 +872,17 @@ async function fetchPalette(id: string): Promise<void> {
 
 // Fetch data on component mount
 onMounted(async () => {
-  const paletteId = route.params.id?.toString();
-  console.log('Component mounted, palette ID:', paletteId);
-  if (paletteId) {
-    await fetchPalette(paletteId);
-    // Set up resize listener after data is loaded
+  const imageId = route.params.id?.toString();
+  if (imageId) {
+    await fetchImage(imageId);
     setupResizeListener();
-    
-    // We'll let the image onload handler take care of fitting the image
-    // This ensures consistent behavior between initial load and manual clicks
   }
 });
 
 // Add a watcher to handle route changes
 watch(() => route.params.id, async (newId) => {
   if (newId) {
-    await fetchPalette(newId.toString());
+    await fetchImage(newId.toString());
   }
 });
 
@@ -840,7 +891,7 @@ async function savePalette() {
   
   try {
     // Save the current palette - ensure ID is a string
-    await palettesStore.updatePalette(String(palette.value.id), palette.value)
+    await imagesStore.updateImage(String(palette.value.id), palette.value)
   } catch (error) {
     console.error('Error saving palette:', error)
   }
@@ -853,15 +904,19 @@ function handleImageLoaded() {
   setTimeout(() => {
     fitImage();
     console.log('Zoom level after fit:', zoomLevel.value);
-  }, 50);
+    // Center the scroll position after fitting
+    centerScrollPosition();
+  }, 100);
 }
 
 // Watch for image URL changes to apply zoom-to-fit when image loads
-watch(imageUrl, (newUrl) => {
+watch(uploadedURL, (newUrl) => {
   if (newUrl) {
     console.log('Image URL changed, waiting for load');
     // Reset zoom level to ensure consistent behavior
     zoomLevel.value = 1;
+    // Reset previous sampled position so next mouse move will sample
+    prevSampledPosition.value = null;
   }
 });
 
@@ -883,103 +938,186 @@ watch(imageRef, (newRef) => {
   }
 });
 
-// Add this function to update the color selector position
-function updateColorSelectorPosition(e: MouseEvent) {
+// Handle mouse movement events
+function handleMouseMove(e: MouseEvent) {
   if (!imageContainer.value) return
   
-  const rect = imageContainer.value.getBoundingClientRect()
-  colorSelectorPosition.value = {
-    x: e.clientX - rect.left,
-    y: e.clientY - rect.top
+  // Store global mouse position for scroll events
+  lastMousePositionGlobal.value = {
+    x: e.clientX,
+    y: e.clientY
   }
   
-  // Sample the color if the image is loaded
-  if (imageRef.value && imageRef.value.complete) {
-    // Throttle color sampling to improve performance
-    if (!updateColorSelectorPosition.throttleTimeout) {
-      updateColorSelectorPosition.throttleTimeout = setTimeout(() => {
-        const color = getColorAtPosition()
-        sampledColor.value = color || ''
-        
-        // Update the color selector style to show the sampled color
-        if (color) {
-          const colorSelectorElement = document.querySelector('.color-selector-overlay')
-          if (colorSelectorElement) {
-            colorSelectorElement.setAttribute('style', 
-              `width: 32px; height: 32px; 
-               left: ${colorSelectorPosition.value.x - 16}px; 
-               top: ${colorSelectorPosition.value.y - 16}px; 
-               border: 1px solid white; 
-               box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5); 
-               background-color: ${color}; 
-               opacity: 0.7;
-               z-index: 10;
-               position: absolute;
-               pointer-events: none;`)
-          }
-        }
-        
-        updateColorSelectorPosition.throttleTimeout = null
-      }, 50) // 50ms throttle
+  // Check if mouse is actually over the image with transforms
+  if (imageRef.value && isColorSamplingEnabled.value) {
+    const imageRect = imageRef.value.getBoundingClientRect()
+    const mouseOverImage = (
+      e.clientX >= imageRect.left && 
+      e.clientX <= imageRect.right && 
+      e.clientY >= imageRect.top && 
+      e.clientY <= imageRect.bottom
+    )
+    showColorSelector.value = mouseOverImage
+  }
+  
+  updateColorSelectorPosition(e)
+}
+
+// Handle scroll events 
+function handleScroll(e: Event) {
+  updateColorSelectorAfterScroll()
+}
+
+// Handle wheel events (which may not immediately trigger scroll events)
+function handleWheel(e: WheelEvent) {
+  // Small delay to allow scroll to update, then update color selector
+  setTimeout(() => {
+    updateColorSelectorAfterScroll()
+  }, 10)
+}
+
+// Update color selector position after scroll/wheel events
+function updateColorSelectorAfterScroll() {
+  if (!showColorSelector.value || !imageContainer.value) return
+  
+  // Get current mouse position relative to the container (accounting for scroll)
+  if (lastMousePositionGlobal.value.x !== 0 || lastMousePositionGlobal.value.y !== 0) {
+    // Use the same calculation that accounts for transforms
+    const newPosition = calculateColorSelectorPosition(
+      lastMousePositionGlobal.value.x, 
+      lastMousePositionGlobal.value.y
+    )
+    colorSelectorPosition.value = newPosition
+    
+    // Also update the sampled color if in sampling mode
+    if (isColorSamplingEnabled.value && !samplingBlocked.value && imageRef.value && imageRef.value.complete) {
+      if (!updateColorSelectorAfterScroll.throttleTimeout) {
+        updateColorSelectorAfterScroll.throttleTimeout = setTimeout(() => {
+          const color = getColorAtPosition()
+          sampledColor.value = color || ''
+          updateColorSelectorAfterScroll.throttleTimeout = null
+        }, 50) // Faster throttle for scroll events
+      }
     }
   }
 }
 
-// Add throttle property to the function
+// Calculate color selector position accounting for image transforms
+function calculateColorSelectorPosition(mouseX: number, mouseY: number) {
+  if (!imageContainer.value || !imageRef.value) return { x: 0, y: 0 }
+
+  const containerRect = imageContainer.value.getBoundingClientRect()
+  const imageRect = imageRef.value.getBoundingClientRect()
+  
+  // Position relative to container
+  const relativeX = mouseX - containerRect.left
+  const relativeY = mouseY - containerRect.top
+  
+  // Check if mouse is over the actual image (considering transforms)
+  const mouseOverImage = (
+    mouseX >= imageRect.left && 
+    mouseX <= imageRect.right && 
+    mouseY >= imageRect.top && 
+    mouseY <= imageRect.bottom
+  )
+  
+  
+  
+  if (mouseOverImage) {
+    return { x: relativeX, y: relativeY }
+  }
+  
+  return { x: relativeX, y: relativeY }
+}
+
+// OPTIMIZED: Add this function to update the color selector position with better throttling
+function updateColorSelectorPosition(e: MouseEvent) {
+  if (!imageContainer.value) return
+
+  const newPosition = calculateColorSelectorPosition(e.clientX, e.clientY)
+  colorSelectorPosition.value = newPosition
+
+  // Only sample the color if color sampling is enabled, not blocked, and the mouse has moved
+  if (
+    isColorSamplingEnabled.value &&
+    !samplingBlocked.value &&
+    imageRef.value &&
+    imageRef.value.complete &&
+    (!prevSampledPosition.value ||
+      Math.abs(prevSampledPosition.value.x - newPosition.x) > 2 ||
+      Math.abs(prevSampledPosition.value.y - newPosition.y) > 2) // Only update if moved >2px
+  ) {
+    // Better throttling to improve performance
+    if (!updateColorSelectorPosition.throttleTimeout) {
+      updateColorSelectorPosition.throttleTimeout = setTimeout(() => {
+        const color = getColorAtPosition()
+        sampledColor.value = color || ''
+        prevSampledPosition.value = { ...newPosition }
+        updateColorSelectorPosition.throttleTimeout = null
+      }, 100) // Increased to 100ms throttle for better performance
+    }
+  }
+}
+
+// Add throttle property to the functions
 updateColorSelectorPosition.throttleTimeout = null as any
+updateColorSelectorAfterScroll.throttleTimeout = null as any
 
 // Add a function to get the color at the current position (optional)
 function getColorAtPosition(): string | null {
   if (!imageRef.value || !imageContainer.value) return null
-  
+
   try {
     // Create canvas if it doesn't exist
     if (!canvasRef.value) {
       canvasRef.value = document.createElement('canvas')
     }
-    
     const canvas = canvasRef.value
     const ctx = canvas.getContext('2d', { willReadFrequently: true })
     if (!ctx) return null
-    
+
     // Set canvas size to match image's natural dimensions
     canvas.width = imageRef.value.naturalWidth
     canvas.height = imageRef.value.naturalHeight
-    
-    // Draw image to canvas
-    ctx.drawImage(imageRef.value, 0, 0)
-    
+
+    // If the imageRef does not have crossOrigin set, reload it with crossOrigin
+    if (imageRef.value.crossOrigin !== 'anonymous') {
+      const offscreenImg = new window.Image()
+      offscreenImg.crossOrigin = 'anonymous'
+      offscreenImg.src = imageRef.value.src
+      // Only draw if loaded
+      if (!offscreenImg.complete) {
+        offscreenImg.onload = () => {
+          ctx.drawImage(offscreenImg, 0, 0)
+        }
+        return null // Wait for load
+      } else {
+        ctx.drawImage(offscreenImg, 0, 0)
+      }
+    } else {
+      ctx.drawImage(imageRef.value, 0, 0)
+    }
+
     // Get the image container dimensions
     const rect = imageContainer.value.getBoundingClientRect()
-    
-    // Calculate the position in the original image coordinates
     const imageRect = imageRef.value.getBoundingClientRect()
-    
-    // Calculate the relative position within the image element
     const relativeX = colorSelectorPosition.value.x - (imageRect.left - rect.left)
     const relativeY = colorSelectorPosition.value.y - (imageRect.top - rect.top)
-    
-    // Convert to the position in the original image coordinates
     const scaleX = imageRef.value.naturalWidth / imageRect.width
     const scaleY = imageRef.value.naturalHeight / imageRect.height
-    
     const pixelX = Math.floor(relativeX * scaleX)
     const pixelY = Math.floor(relativeY * scaleY)
-    
-    // Make sure coordinates are within bounds
     const boundedX = Math.max(0, Math.min(pixelX, imageRef.value.naturalWidth - 1))
     const boundedY = Math.max(0, Math.min(pixelY, imageRef.value.naturalHeight - 1))
-    
     // Get pixel data
     const pixel = ctx.getImageData(boundedX, boundedY, 1, 1).data
-    
-    // Convert to hex with proper padding
     const hex = `#${pixel[0].toString(16).padStart(2, '0')}${pixel[1].toString(16).padStart(2, '0')}${pixel[2].toString(16).padStart(2, '0')}`
-    
-    console.log('Sampled color at position:', { x: boundedX, y: boundedY, color: hex, rgb: `rgb(${pixel[0]}, ${pixel[1]}, ${pixel[2]})` })
-    
     return hex
-  } catch (error) {
+  } catch (error: any) {
+    if (error instanceof DOMException && error.name === 'SecurityError') {
+      samplingBlocked.value = true
+      console.error('Color sampling blocked due to CORS/security policy.')
+    }
     console.error('Error sampling color:', error)
     return null
   }
@@ -987,113 +1125,103 @@ function getColorAtPosition(): string | null {
 
 // Function to toggle color selection
 function toggleColorSelection(colorId: string): void {
-  console.log('Toggling color selection:', colorId, 'Current selection:', selectedColorId.value)
-  
-  // If in serial mode, exit serial mode when clicking on a color swatch
-  if (serialSwatchMode.value) {
-    serialSwatchMode.value = false
-    console.log('Exited serial mode by clicking on a color swatch')
-  }
-  
-  if (selectedColorId.value === colorId) {
-    // If already selected, unselect it
-    selectedColorId.value = null
-    // Deactivate color sampling tool when unselecting
-    colorSamplingEnabled.value = false
-    console.log('Unselected color:', colorId, 'Color sampling disabled')
+  console.log('toggleColorSelection called for colorId:', colorId)
+  if (samplingState.value.selectedColorId === colorId) {
+    enterNoneMode();
   } else {
-    // Otherwise, select it
-    selectedColorId.value = colorId
-    // Activate color sampling tool when selecting
-    colorSamplingEnabled.value = true
-    console.log('Selected color:', colorId, 'Color sampling enabled')
+    enterEditMode(colorId);
   }
 }
 
-// Function to add the sampled color to the palette
+// Helper for template: is color sampling enabled?
+const isColorSamplingEnabled = computed(() =>
+  samplingState.value.mode === 'edit' || samplingState.value.mode === 'serial'
+);
+
+// Helper for template: is serial mode?
+const isSerialMode = computed(() => samplingState.value.mode === 'serial');
+
+// Helper for template: is edit mode?
+const isEditMode = computed(() => samplingState.value.mode === 'edit');
+
+// Update usages in addSampledColor
 function addSampledColor() {
-  if (!sampledColor.value || !palette.value) return
+  const startTime = performance.now();
+  console.log('🟢 Starting addSampledColor');
   
-  // Convert hex to rgb and hsv
-  const rgbValues = hexToRgbArray(sampledColor.value)
-  const hsvValues = rgbToHsv(rgbValues[0], rgbValues[1], rgbValues[2])
-  
-  // Create a copy of the palette
-  const updatedPalette = { ...palette.value }
-  
-  // Ensure colorPalette is an array
-  const colors = Array.isArray(updatedPalette.colorPalette) 
-    ? updatedPalette.colorPalette 
-    : (updatedPalette.colorPalette as Record<string, any>)?.length 
-      ? Object.values(updatedPalette.colorPalette as Record<string, any>) 
-      : []
-  
-  // If in edit mode and a color is selected, update that color
-  if (!serialSwatchMode.value && selectedColorId.value) {
-    const colorIndex = colors.findIndex((c: any) => c.id === selectedColorId.value)
-    
+  if (!sampledColor.value || !palette.value) return;
+  const rgbValues = hexToRgbArray(sampledColor.value);
+  const hsvValues = rgbToHsv(rgbValues[0], rgbValues[1], rgbValues[2]);
+  const updatedPalette = { ...palette.value };
+  const colors = Array.isArray(updatedPalette.colorPalette)
+    ? updatedPalette.colorPalette
+    : (updatedPalette.colorPalette as Record<string, any>)?.length
+      ? Object.values(updatedPalette.colorPalette as Record<string, any>)
+      : [];
+  if (samplingState.value.mode === 'edit' && samplingState.value.selectedColorId) {
+    const colorIndex = colors.findIndex((c: any) => c.id === samplingState.value.selectedColorId);
     if (colorIndex !== -1) {
-      // Create a new array with the updated color
-      const updatedColors = [...colors]
+      const updatedColors = [...colors];
       updatedColors[colorIndex] = {
         ...updatedColors[colorIndex],
         hex: sampledColor.value,
         rgb: rgbValues,
-        hsv: hsvValues
+        hsv: hsvValues,
+      };
+      updatedPalette.colorPalette = updatedColors;
+      lastAddedColorId.value = samplingState.value.selectedColorId;
+      
+      console.log('🔵 About to update imageData (edit mode), time:', performance.now() - startTime, 'ms');
+      
+      // Update local imageData immediately for fast UI updates
+      if (imageData.value) {
+        imageData.value = { ...imageData.value, colorPalette: updatedPalette.colorPalette };
       }
       
-      // Update the palette with the new colors array
-      updatedPalette.colorPalette = updatedColors
+      console.log('🟡 Updated imageData (edit mode), time:', performance.now() - startTime, 'ms');
       
-      // Store the ID of the updated color to scroll to it
-      lastAddedColorId.value = selectedColorId.value
+      // Update store in background (non-blocking)
+      imagesStore.updateImage(String(updatedPalette.id), updatedPalette)
+        .catch(err => console.error('Error updating palette:', err));
       
-      // Save the updated palette
-      palettesStore.updatePalette(String(updatedPalette.id), updatedPalette)
-        .then(() => {
-          console.log('Palette updated, scrolling to color:', lastAddedColorId.value)
-          // Call scrollToColor after the update is complete
-          scrollToColor()
-        })
-        .catch(err => {
-          console.error('Error updating palette:', err)
-        })
-      
-      return
+      console.log('🟠 About to scroll (edit mode), time:', performance.now() - startTime, 'ms');
+      // Scroll immediately since DOM is already updated
+      scrollToColor();
+      console.log('🔴 Finished addSampledColor (edit mode), total time:', performance.now() - startTime, 'ms');
+      return;
     }
   }
-  
-  // If in serial mode or no color is selected, add a new color
-  const newColorId = `color-${Date.now()}`
+  // Serial mode or no color selected: add new color
+  const newColorId = `color-${Date.now()}`;
   const newColor = {
     id: newColorId,
     hex: sampledColor.value,
     rgb: rgbValues,
     hsv: hsvValues,
-    position: colors.length
+    position: colors.length,
+  };
+  updatedPalette.colorPalette = [...colors, newColor];
+  lastAddedColorId.value = newColorId;
+  console.log('🔵 About to update imageData (new color), time:', performance.now() - startTime, 'ms');
+  
+  // Update local imageData immediately for fast UI updates
+  if (imageData.value) {
+    imageData.value = { ...imageData.value, colorPalette: updatedPalette.colorPalette };
   }
   
-  // Add the new color to the array
-  updatedPalette.colorPalette = [...colors, newColor]
+  console.log('🟡 Updated imageData (new color), time:', performance.now() - startTime, 'ms');
   
-  // Store the ID of the new color to scroll to it
-  lastAddedColorId.value = newColorId
+  // Update store in background (non-blocking)
+  imagesStore.updateImage(String(updatedPalette.id), updatedPalette)
+    .catch(err => console.error('Error updating palette:', err));
   
-  // Save the updated palette
-  palettesStore.updatePalette(String(updatedPalette.id), updatedPalette)
-    .then(() => {
-      console.log('Palette updated with new color, scrolling to:', lastAddedColorId.value)
-      // Call scrollToColor after the update is complete
-      scrollToColor()
-      
-      // If in edit mode, automatically select the new color
-      if (!serialSwatchMode.value) {
-        selectedColorId.value = newColorId
-      }
-    })
-    .catch(err => {
-      console.error('Error updating palette:', err)
-    })
+  console.log('🟠 About to scroll (new color), time:', performance.now() - startTime, 'ms');
+  // Scroll immediately since DOM is already updated
+  scrollToColor();
+  if (samplingState.value.mode === 'edit') {
+    samplingState.value.selectedColorId = newColorId;
+  }
+  console.log('🔴 Finished addSampledColor (new color), total time:', performance.now() - startTime, 'ms');
 }
 
 // Helper function to convert hex to rgb array
@@ -1146,113 +1274,37 @@ function rgbToHsv(r: number, g: number, b: number): number[] {
   ]
 }
 
-// Add click handler to the image container
+// Update handleImageClick
 function handleImageClick(e: MouseEvent) {
-  if (showColorSelector.value && sampledColor.value && colorSamplingEnabled.value) {
-    addSampledColor()
-    // scrollToColor is now called from within addSampledColor after the palette update
-  }
-}
-
-// Function to scroll to the last added/updated color
-async function scrollToColor() {
-  if (!lastAddedColorId.value || !colorListRef.value) {
-    console.log('Cannot scroll: missing lastAddedColorId or colorListRef')
-    return
+  // Log position data on click
+  if (showColorSelector.value && imageContainer.value && imageRef.value) {
+    console.log('🧮 Click position calculation:', {
+      mouseGlobal: { x: e.clientX, y: e.clientY },
+      containerScroll: { 
+        scrollTop: imageContainer.value.scrollTop, 
+        scrollLeft: imageContainer.value.scrollLeft 
+      },
+      colorSelectorPosition: colorSelectorPosition.value,
+      imagePosition: imagePosition.value,
+      zoomLevel: zoomLevel.value
+    })
   }
   
-  console.log('Attempting to scroll to color:', lastAddedColorId.value)
-  
-  // Use a slightly longer delay to ensure the DOM has fully updated
-  // and the palette store has finished its update
-  setTimeout(async () => {
-    // Wait for Vue to update the DOM
-    await nextTick()
-    
-    // Find the color element
-    const colorElement = colorListRef.value?.querySelector(`[data-color-id="${lastAddedColorId.value}"]`)
-    
-    if (colorElement) {
-      console.log('Found color element, scrolling into view')
-      // Scroll the element into view with smooth behavior
-      colorElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-    } else {
-      console.log('Color element not found in DOM')
-      
-      // Try again with a longer delay as a fallback
-      setTimeout(() => {
-        const retryElement = colorListRef.value?.querySelector(`[data-color-id="${lastAddedColorId.value}"]`)
-        if (retryElement) {
-          console.log('Found color element on retry, scrolling into view')
-          retryElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-        } else {
-          console.log('Color element still not found after retry')
-        }
-      }, 300)
+  // Only add color on click in serial mode, or when in edit mode with a selected color
+  if (showColorSelector.value && sampledColor.value) {
+    if (samplingState.value.mode === 'serial') {
+      // In serial mode, always add new color on click
+      addSampledColor();
+    } else if (samplingState.value.mode === 'edit' && samplingState.value.selectedColorId) {
+      // In edit mode, only add/update if we have a selected color
+      addSampledColor();
     }
-  }, 100)
-}
-
-// Function to toggle between serial mode and edit mode
-function toggleSwatchMode(): void {
-  serialSwatchMode.value = !serialSwatchMode.value
-  
-  // Automatically activate/deactivate color sampling based on serial mode
-  colorSamplingEnabled.value = serialSwatchMode.value
-  
-  // Unselect any selected color when switching to serial mode
-  if (serialSwatchMode.value) {
-    selectedColorId.value = null
-  }
-  console.log(`Switched to ${serialSwatchMode.value ? 'serial' : 'edit'} mode`)
-}
-
-// Function to toggle serial mode on/off
-function toggleSerialMode(): void {
-  serialSwatchMode.value = !serialSwatchMode.value
-  
-  // Automatically activate/deactivate color sampling based on serial mode
-  colorSamplingEnabled.value = serialSwatchMode.value
-  
-  if (serialSwatchMode.value) {
-    // When entering serial mode, deselect any selected color
-    selectedColorId.value = null
-    console.log('Started serial mode for adding multiple colors')
-  } else {
-    console.log('Exited serial mode')
   }
 }
 
-// Update onMounted to ensure color selector is hidden on page load
-onMounted(() => {
-  // Ensure color selector is hidden on page load
-  showColorSelector.value = false;
-  
-  // Reset cursor state
-  isPanModeActive.value = false;
-  
-  // Set up dark mode detection
-  checkDarkMode()
-  const observer = new MutationObserver(checkDarkMode)
-  observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
-  
-  // Set up image drag event listeners
-  document.addEventListener('mousemove', dragImage)
-  document.addEventListener('mouseup', stopImageDrag)
-  
-  // Fetch palette data and set up resize listener
-  const paletteId = route.params.id?.toString();
-  console.log('Component mounted, palette ID:', paletteId);
-  if (paletteId) {
-    fetchPalette(paletteId);
-    setupResizeListener();
-  }
-});
-
-// Update the image container event handlers
+// Update handleImageMouseEnter
 function handleImageMouseEnter() {
-  // Only show color selector if not in pan mode AND sampling is enabled
-  if (!isPanModeActive.value && colorSamplingEnabled.value) {
+  if (!isPanModeActive.value && isColorSamplingEnabled.value) {
     showColorSelector.value = true;
   }
 }
@@ -1270,6 +1322,164 @@ function parseRgbString(rgbStr: string): number[] {
   }
   return [0, 0, 0] // Fallback
 }
+
+// Add a function to create a sample palette if none exists
+function createSamplePalette(id: string) {
+  if (!palette.value) {
+    console.log('Creating sample palette with ID:', id);
+    
+    // Create a sample palette
+    const samplePalette = {
+      id: id,
+      paletteName: `Sample Palette ${id}`,
+      createdDateTime: new Date().toISOString(),
+      colorPalette: [
+        {
+          id: `color-${id}-1`,
+          hex: '#FF5733',
+          rgb: [255, 87, 51],
+          name: 'Coral Red',
+          position: 1
+        },
+        {
+          id: `color-${id}-2`,
+          hex: '#33FF57',
+          rgb: [51, 255, 87],
+          name: 'Lime Green',
+          position: 2
+        },
+        {
+          id: `color-${id}-3`,
+          hex: '#3357FF',
+          rgb: [51, 87, 255],
+          name: 'Royal Blue',
+          position: 3
+        }
+      ],
+      uploadedURL: 'https://picsum.photos/800/600'
+    };
+    
+    // Save the sample palette to local storage
+    imagesStore.updateImage(id, samplePalette);
+    
+    // Fetch the palette again
+    fetchImage(id);
+  }
+}
+
+// Add a button to create a sample palette
+const showCreateSampleButton = computed(() => {
+  return error.value === 'No image found with the specified ID.' && !palette.value;
+});
+
+function enterNoneMode() {
+  samplingState.value.mode = 'none';
+  samplingState.value.selectedColorId = null;
+}
+
+function enterEditMode(colorId: string) {
+  samplingState.value.mode = 'edit';
+  samplingState.value.selectedColorId = colorId;
+}
+
+function enterSerialMode() {
+  samplingState.value.mode = 'serial';
+  samplingState.value.selectedColorId = null;
+}
+
+function toggleSerialMode() {
+  if (samplingState.value.mode === 'serial') {
+    enterNoneMode();
+  } else {
+    enterSerialMode();
+  }
+}
+
+// Function to scroll to the last added/updated color
+async function scrollToColor() {
+  if (!lastAddedColorId.value || !colorListRef.value) {
+    console.log('Cannot scroll: missing lastAddedColorId or colorListRef')
+    return
+  }
+  
+  console.log('Attempting to scroll to color:', lastAddedColorId.value)
+  
+  // Function to attempt scrolling with retries
+  const attemptScroll = (attempt = 1, maxAttempts = 5) => {
+    const colorElement = colorListRef.value?.querySelector(`[data-color-id="${lastAddedColorId.value}"]`)
+    
+    if (colorElement) {
+      // Scroll the element into view with smooth behavior
+      colorElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+      return true
+    } else {
+      if (attempt < maxAttempts) {
+        // Try again with a short delay
+        setTimeout(() => attemptScroll(attempt + 1, maxAttempts), 20)
+      }
+      return false
+    }
+  }
+  
+  // Wait for Vue to update the DOM first
+  await nextTick()
+  
+  // Start the retry attempts
+  attemptScroll()
+}
+
+const prevSampledPosition = ref<{ x: number; y: number } | null>(null)
+const samplingBlocked = ref(false)
+
+// Set up event listeners and initialize
+onMounted(() => {
+  // Set up dark mode detection
+  checkDarkMode()
+  const observer = new MutationObserver(checkDarkMode)
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
+  
+  // Pan mode replaced by native scrolling - no drag listeners needed
+  
+  // Add global mouse tracking for better color selector positioning
+  document.addEventListener('mousemove', trackGlobalMouse)
+  
+  // Fetch image data and set up resize listener
+  const imageId = route.params.id?.toString();
+  console.log('Component mounted, image ID:', imageId);
+  if (imageId) {
+    fetchImage(imageId);
+    // Set up resize listener after data is loaded
+    setupResizeListener();
+  }
+})
+
+// Clean up event listeners
+onUnmounted(() => {
+  // Clean up dark mode observer
+  document.querySelectorAll('*').forEach(el => {
+    const observer = new MutationObserver(() => {});
+    observer.disconnect();
+  });
+  
+  // Clean up global mouse tracking
+  document.removeEventListener('mousemove', trackGlobalMouse)
+  
+  // Clean up resize listener
+  window.removeEventListener('resize', updateImageColumnWidth);
+})
+
+// Global mouse tracking for better color selector positioning
+function trackGlobalMouse(e: MouseEvent) {
+  lastMousePositionGlobal.value = { x: e.clientX, y: e.clientY }
+  
+  // Update color selector position if it's visible and we're in color sampling mode
+  if (showColorSelector.value && isColorSamplingEnabled.value && imageContainer.value && imageRef.value) {
+    const newPosition = calculateColorSelectorPosition(e.clientX, e.clientY)
+    colorSelectorPosition.value = newPosition
+  }
+}
+
+
 </script>
 
 <style scoped>

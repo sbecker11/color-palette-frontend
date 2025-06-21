@@ -17,7 +17,7 @@ interface ApiClientImpl {
 
 export default defineNuxtPlugin((nuxtApp) => {
   const config = useRuntimeConfig()
-  const baseURL = config.public.apiBase || 'http://localhost:3001/api/v1'
+  const baseURL = config.public.apiBase
   
   console.log('API Base URL:', baseURL)
   
@@ -27,11 +27,27 @@ export default defineNuxtPlugin((nuxtApp) => {
   // Track if we're in development mode
   const isDev = process.env.NODE_ENV === 'development'
   
-  // Create a flag to use mock data
-  const useMockData = ref(isDev)
+  // Create a flag to use mock data - default to true if no API URL is configured
+  // Use boolean type instead of literal true type
+  const useMockData = ref<boolean>(!baseURL || true)
+  
+  // If no API is available, force offline mode
+  if (process.client && !baseURL) {
+    console.log('No API URL configured, forcing offline mode')
+    localStorage.setItem('offlineMode', 'true')
+  }
 
   // Track the last status code from the API
   const lastStatusCode = ref(0)
+  
+  // Check if we've already set offline mode preference
+  if (process.client) {
+    const savedOfflineMode = localStorage.getItem('offlineMode')
+    if (savedOfflineMode === null) {
+      // If not set yet, default to offline mode
+      localStorage.setItem('offlineMode', 'true')
+    }
+  }
 
   // Create the API client
   const api: ApiClientImpl = {
@@ -442,23 +458,31 @@ export default defineNuxtPlugin((nuxtApp) => {
 
   // Check API availability on app start
   if (process.client) {
-    // Immediate check with a short timeout to avoid blocking the UI
-    setTimeout(async () => {
-      console.log('Initial API availability check...')
-      const available = await api.checkAvailability()
-      
-      if (available) {
-        console.log('API is available, resetting mock data flag')
-        useMockData.value = false
+    // Check if offline mode is enabled
+    const offlineMode = localStorage.getItem('offlineMode') === 'true'
+    
+    // Skip API check if in offline mode
+    if (!offlineMode) {
+      // Immediate check with a short timeout to avoid blocking the UI
+      setTimeout(async () => {
+        console.log('Initial API availability check...')
+        const available = await api.checkAvailability()
         
-        // If we're on the images page, refresh the data
-        const route = useRoute()
-        if (route.path === '/' || route.path.startsWith('/images')) {
-          console.log('On images page, refreshing data with real API')
-          // const imagesStore = useImagesStore()
-          // imagesStore.fetchImages()
+        if (available) {
+          console.log('API is available, resetting mock data flag')
+          useMockData.value = false
+          
+          // If we're on the images page, refresh the data
+          const route = useRoute()
+          if (route.path === '/' || route.path.startsWith('/images')) {
+            console.log('On images page, refreshing data with real API')
+            // const imagesStore = useImagesStore()
+            // imagesStore.fetchImages()
+          }
         }
-      }
-    }, 100)
+      }, 100)
+    } else {
+      console.log('Offline mode enabled, skipping API availability check')
+    }
   }
 })

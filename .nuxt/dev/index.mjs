@@ -5,6 +5,10 @@ import { resolve, dirname, join } from 'node:path';
 import nodeCrypto from 'node:crypto';
 import { parentPort, threadId } from 'node:worker_threads';
 import { escapeHtml } from 'file:///Users/sbecker11/color-palette-app/color-palette-frontend/node_modules/@vue/shared/dist/shared.cjs.js';
+import fs, { createReadStream } from 'node:fs';
+import { promisify } from 'node:util';
+import { readFile as readFile$1 } from 'node:fs/promises';
+import { createInterface } from 'node:readline';
 import { createRenderer, getRequestDependencies, getPreloadLinks, getPrefetchLinks } from 'file:///Users/sbecker11/color-palette-app/color-palette-frontend/node_modules/vue-bundle-renderer/dist/runtime.mjs';
 import { parseURL, withoutBase, joinURL, getQuery, withQuery, withTrailingSlash, joinRelativeURL } from 'file:///Users/sbecker11/color-palette-app/color-palette-frontend/node_modules/ufo/dist/index.mjs';
 import { renderToString } from 'file:///Users/sbecker11/color-palette-app/color-palette-frontend/node_modules/vue/server-renderer/index.mjs';
@@ -20,7 +24,6 @@ import defu, { defuFn } from 'file:///Users/sbecker11/color-palette-app/color-pa
 import { snakeCase } from 'file:///Users/sbecker11/color-palette-app/color-palette-frontend/node_modules/scule/dist/index.mjs';
 import { getContext } from 'file:///Users/sbecker11/color-palette-app/color-palette-frontend/node_modules/unctx/dist/index.mjs';
 import { toRouteMatcher, createRouter } from 'file:///Users/sbecker11/color-palette-app/color-palette-frontend/node_modules/radix3/dist/index.mjs';
-import { readFile } from 'node:fs/promises';
 import consola, { consola as consola$1 } from 'file:///Users/sbecker11/color-palette-app/color-palette-frontend/node_modules/consola/dist/index.mjs';
 import { ErrorParser } from 'file:///Users/sbecker11/color-palette-app/color-palette-frontend/node_modules/youch-core/build/index.js';
 import { Youch } from 'file:///Users/sbecker11/color-palette-app/color-palette-frontend/node_modules/youch/build/index.js';
@@ -657,7 +660,8 @@ const _inlineRuntimeConfig = {
     }
   },
   "public": {
-    "apiBase": "http://localhost:3001/api/v1"
+    "apiBase": "",
+    "imageMetadataJsonlFile": "/Users/sbecker11/color-palette-app/color-palette-frontend/image_metadata.jsonl"
   }
 };
 const envOptions = {
@@ -972,7 +976,7 @@ async function sourceLoader(frame) {
     return;
   }
   if (frame.type === "app") {
-    const rawSourceMap = await readFile(`${frame.fileName}.map`, "utf8").catch(() => {
+    const rawSourceMap = await readFile$1(`${frame.fileName}.map`, "utf8").catch(() => {
     });
     if (rawSourceMap) {
       const consumer = await new SourceMapConsumer(rawSourceMap);
@@ -984,7 +988,7 @@ async function sourceLoader(frame) {
       }
     }
   }
-  const contents = await readFile(frame.fileName, "utf8").catch(() => {
+  const contents = await readFile$1(frame.fileName, "utf8").catch(() => {
   });
   return contents ? { contents } : void 0;
 }
@@ -1447,6 +1451,8 @@ const _lazy_DlAACA = () => Promise.resolve().then(function () { return palettes$
 const _lazy_LpvuBb = () => Promise.resolve().then(function () { return index$3; });
 const _lazy__Tkt_n = () => Promise.resolve().then(function () { return uploadUrl_post$1; });
 const _lazy_wm10IX = () => Promise.resolve().then(function () { return upload_post$1; });
+const _lazy_0kaFw_ = () => Promise.resolve().then(function () { return metadata_get$1; });
+const _lazy_RytnWh = () => Promise.resolve().then(function () { return metadata$1; });
 const _lazy_kQKoPH = () => Promise.resolve().then(function () { return _id__delete$1; });
 const _lazy_gfFqkC = () => Promise.resolve().then(function () { return _id__put$1; });
 const _lazy_0X8907 = () => Promise.resolve().then(function () { return _id_$1; });
@@ -1461,6 +1467,8 @@ const handlers = [
   { route: '/api/images', handler: _lazy_LpvuBb, lazy: true, middleware: false, method: undefined },
   { route: '/api/images/upload-url', handler: _lazy__Tkt_n, lazy: true, middleware: false, method: "post" },
   { route: '/api/images/upload', handler: _lazy_wm10IX, lazy: true, middleware: false, method: "post" },
+  { route: '/api/jsonl/metadata', handler: _lazy_0kaFw_, lazy: true, middleware: false, method: "get" },
+  { route: '/api/jsonl/metadata', handler: _lazy_RytnWh, lazy: true, middleware: false, method: undefined },
   { route: '/api/palettes/:id', handler: _lazy_kQKoPH, lazy: true, middleware: false, method: "delete" },
   { route: '/api/palettes/:id', handler: _lazy_gfFqkC, lazy: true, middleware: false, method: "put" },
   { route: '/api/palettes/:id', handler: _lazy_0X8907, lazy: true, middleware: false, method: undefined },
@@ -1844,39 +1852,91 @@ const _id_$3 = /*#__PURE__*/Object.freeze({
 
 const file = defineEventHandler(async (event) => {
   const id = getRouterParam(event, "id");
-  const config = useRuntimeConfig();
-  const apiBase = config.public.apiBase || "http://localhost:3001/api/v1";
+  console.log(`[IMAGE ENDPOINT] Serving image for ID: ${id}`);
   try {
-    const response = await fetch(`${apiBase}/images/${id}/file`);
-    if (!response.ok) {
-      throw new Error(`API returned ${response.status}`);
+    let seededRandom = function(seed2) {
+      const x = Math.sin(seed2) * 1e4;
+      return x - Math.floor(x);
+    }, generateColor = function(seed2, offset) {
+      const hue = Math.floor(seededRandom(seed2 + offset) * 360);
+      const saturation = 60 + Math.floor(seededRandom(seed2 + offset + 1) * 40);
+      const lightness = 40 + Math.floor(seededRandom(seed2 + offset + 2) * 40);
+      return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+    };
+    const seed = parseInt(id.replace(/\D/g, "") || "1");
+    const colors = [];
+    for (let i = 0; i < 12; i++) {
+      colors.push(generateColor(seed, i * 7));
     }
-    const imageBuffer = await response.arrayBuffer();
-    const contentType = response.headers.get("content-type") || "image/jpeg";
-    setResponseHeader(event, "Content-Type", contentType);
-    return Buffer.from(imageBuffer);
+    const colorfulSvg = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+        <defs>
+          <linearGradient id="bg1" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:${colors[0]}" />
+            <stop offset="50%" style="stop-color:${colors[1]}" />
+            <stop offset="100%" style="stop-color:${colors[2]}" />
+          </linearGradient>
+          <radialGradient id="circle1" cx="30%" cy="30%" r="40%">
+            <stop offset="0%" style="stop-color:${colors[3]}" />
+            <stop offset="100%" style="stop-color:${colors[4]}" />
+          </radialGradient>
+          <radialGradient id="circle2" cx="70%" cy="70%" r="35%">
+            <stop offset="0%" style="stop-color:${colors[5]}" />
+            <stop offset="100%" style="stop-color:${colors[6]}" />
+          </radialGradient>
+        </defs>
+        
+        <!-- Background gradient -->
+        <rect fill="url(#bg1)" width="800" height="600"/>
+        
+        <!-- Colorful geometric shapes -->
+        <circle cx="240" cy="180" r="120" fill="url(#circle1)" opacity="0.8"/>
+        <circle cx="560" cy="420" r="100" fill="url(#circle2)" opacity="0.8"/>
+        
+        <!-- Triangular shapes -->
+        <polygon points="100,500 300,400 200,200" fill="${colors[7]}" opacity="0.7"/>
+        <polygon points="500,100 700,200 600,350" fill="${colors[8]}" opacity="0.6"/>
+        
+        <!-- Rectangles -->
+        <rect x="50" y="50" width="150" height="100" fill="${colors[9]}" opacity="0.7" transform="rotate(15 125 100)"/>
+        <rect x="600" y="450" width="120" height="80" fill="${colors[10]}" opacity="0.8" transform="rotate(-20 660 490)"/>
+        
+        <!-- Additional circles for more color variety -->
+        <circle cx="150" cy="350" r="60" fill="${colors[11]}" opacity="0.6"/>
+        <circle cx="650" cy="150" r="80" fill="${colors[0]}" opacity="0.5"/>
+        
+        <!-- Overlay pattern for texture -->
+        <rect x="0" y="0" width="800" height="600" fill="url(#bg1)" opacity="0.1"/>
+        
+        <!-- Small text indicator -->
+        <text fill="rgba(255,255,255,0.3)" font-family="Arial, sans-serif" font-size="12" x="10" y="590">
+          ${id}
+        </text>
+      </svg>
+    `.trim();
+    console.log(`[IMAGE ENDPOINT] Generated colorful SVG for ${id}`);
+    setResponseHeader(event, "Content-Type", "image/svg+xml");
+    setResponseHeader(event, "Cache-Control", "public, max-age=3600");
+    setResponseHeader(event, "Access-Control-Allow-Origin", "*");
+    return colorfulSvg;
   } catch (error) {
-    console.error(`Error fetching image ${id} from API:`, error);
-    {
-      console.log(`Returning placeholder image for ${id}`);
-      const placeholderUrl = `https://picsum.photos/id/${parseInt(id) % 100}/800/600`;
-      try {
-        const placeholderResponse = await fetch(placeholderUrl);
-        const placeholderBuffer = await placeholderResponse.arrayBuffer();
-        setResponseHeader(event, "Content-Type", "image/jpeg");
-        return Buffer.from(placeholderBuffer);
-      } catch (placeholderError) {
-        console.error("Error fetching placeholder image:", placeholderError);
-        throw createError({
-          statusCode: 404,
-          statusMessage: "Image not found"
-        });
-      }
-    }
-    throw createError({
-      statusCode: 404,
-      statusMessage: "Image not found"
-    });
+    console.error(`[IMAGE ENDPOINT] Error serving image ${id}:`, error);
+    const errorSvg = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+        <rect fill="#fef2f2" width="800" height="600"/>
+        <circle cx="400" cy="280" r="30" fill="#fca5a5"/>
+        <text fill="#dc2626" font-family="Arial, sans-serif" font-size="24" font-weight="bold" text-anchor="middle" x="400" y="290">!</text>
+        <text fill="#dc2626" font-family="Arial, sans-serif" font-size="16" text-anchor="middle" x="400" y="340">
+          Error loading image
+        </text>
+        <text fill="#991b1b" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" x="400" y="360">
+          ${id}
+        </text>
+      </svg>
+    `.trim();
+    setResponseHeader(event, "Content-Type", "image/svg+xml");
+    setResponseHeader(event, "Access-Control-Allow-Origin", "*");
+    return errorSvg;
   }
 });
 
@@ -2063,6 +2123,104 @@ const upload_post = defineEventHandler(async (event) => {
 const upload_post$1 = /*#__PURE__*/Object.freeze({
   __proto__: null,
   default: upload_post
+});
+
+const readFile = promisify(fs.readFile);
+const metadata_get = defineEventHandler(async (event) => {
+  const config = useRuntimeConfig();
+  const jsonlFilePath = config.public.imageMetadataJsonlFile;
+  if (!jsonlFilePath) {
+    return {
+      success: false,
+      error: "IMAGE_METADATA_JSONL_FILE environment variable is not set"
+    };
+  }
+  try {
+    if (!fs.existsSync(jsonlFilePath)) {
+      return {
+        success: false,
+        error: `JSONL file not found at path: ${jsonlFilePath}`
+      };
+    }
+    const fileContent = await readFile(jsonlFilePath, "utf8");
+    const lines = fileContent.split(/\r?\n/).filter((line) => line.trim().length > 0);
+    const jsonlData = lines.map((line) => {
+      try {
+        return JSON.parse(line);
+      } catch (err) {
+        console.error("Error parsing JSONL line:", line);
+        return null;
+      }
+    }).filter((item) => item !== null);
+    return {
+      success: true,
+      data: jsonlData,
+      filePath: jsonlFilePath
+    };
+  } catch (error) {
+    console.error("Error reading JSONL file:", error);
+    return {
+      success: false,
+      error: `Error reading JSONL file: ${error.message}`
+    };
+  }
+});
+
+const metadata_get$1 = /*#__PURE__*/Object.freeze({
+  __proto__: null,
+  default: metadata_get
+});
+
+const metadata = defineEventHandler(async (event) => {
+  try {
+    const config = useRuntimeConfig();
+    const jsonlFilePath = config.public.imageMetadataJsonlFile;
+    if (!jsonlFilePath) {
+      return {
+        success: false,
+        error: "No JSONL file path configured"
+      };
+    }
+    try {
+      await readFile$1(jsonlFilePath, { encoding: "utf8" });
+    } catch (error) {
+      return {
+        success: false,
+        error: `Could not access JSONL file: ${error.message}`
+      };
+    }
+    const fileStream = createReadStream(jsonlFilePath);
+    const rl = createInterface({
+      input: fileStream,
+      crlfDelay: Infinity
+    });
+    const data = [];
+    for await (const line of rl) {
+      if (line.trim()) {
+        try {
+          const parsedLine = JSON.parse(line);
+          data.push(parsedLine);
+        } catch (error) {
+          console.error("Error parsing JSONL line:", error);
+        }
+      }
+    }
+    return {
+      success: true,
+      data
+    };
+  } catch (error) {
+    console.error("Error in JSONL metadata endpoint:", error);
+    return {
+      success: false,
+      error: `Failed to process JSONL file: ${error.message}`
+    };
+  }
+});
+
+const metadata$1 = /*#__PURE__*/Object.freeze({
+  __proto__: null,
+  default: metadata
 });
 
 const _id__delete = defineEventHandler(async (event) => {

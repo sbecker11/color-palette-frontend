@@ -22,8 +22,8 @@ export interface ApiHealthStatus {
 
 export function useApiHealth() {
   const config = useRuntimeConfig()
-  const apiUrl = computed(() => config.public.apiBase || 'http://localhost:3001/api/v1')
-  const healthCheckUrl = computed(() => `${apiUrl.value}/health`)
+  const apiUrl = computed(() => config.public.apiBase)
+  const healthCheckUrl = computed(() => apiUrl.value ? `${apiUrl.value}/health` : null)
   
   const healthStatus = ref<ApiHealthStatus>({
     isHealthy: false,
@@ -34,29 +34,73 @@ export function useApiHealth() {
   })
 
   const paletteStore = usePaletteStore();
+  
+  // Set offline mode by default if no API is available
+  if (process.client) {
+    // If apiBase is null, force offline mode
+    if (!apiUrl.value) {
+      console.log('No API URL configured, forcing offline mode')
+      paletteStore.toggleOfflineMode(true)
+    } else {
+      // Otherwise check if we've already set offline mode preference
+      const savedOfflineMode = localStorage.getItem('offlineMode')
+      if (savedOfflineMode === null) {
+        // If not set yet, default to offline mode
+        paletteStore.toggleOfflineMode(true)
+      }
+    }
+  }
 
   // Check the API health
   async function checkHealth() {
+    // If no API URL is configured, don't even try
+    if (!apiUrl.value) {
+      console.log('No API URL configured, skipping health check');
+      healthStatus.value = {
+        isHealthy: false,
+        isChecking: false,
+        lastChecked: new Date().toISOString(),
+        data: null,
+        error: 'No API URL configured'
+      }
+      return healthStatus.value
+    }
+    
+    // If offline mode is enabled, don't try to check API health
     if (paletteStore.offlineMode) {
-      return {
+      console.log('Offline mode enabled, skipping health check');
+      healthStatus.value = {
         isHealthy: false,
         isChecking: false,
         lastChecked: new Date().toISOString(),
         data: null,
         error: 'Offline mode enabled'
       }
+      return healthStatus.value
     }
+    
     healthStatus.value.isChecking = true
     healthStatus.value.error = null
     
     try {
-      const response = await fetch(healthCheckUrl.value, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json'
-        },
-        credentials: 'include' // Include credentials for authentication
-      })
+      // Skip the actual fetch if in offline mode (redundant check for safety)
+      if (paletteStore.offlineMode) {
+        throw new Error('Offline mode enabled')
+      }
+      
+      // Wrap the fetch in a check to prevent it from running in offline mode
+      let response;
+      if (!paletteStore.offlineMode) {
+        response = await fetch(healthCheckUrl.value, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json'
+          },
+          credentials: 'include' // Include credentials for authentication
+        });
+      } else {
+        throw new Error('Offline mode enabled');
+      }
       
       if (!response.ok) {
         // If we get a 401 or 403, it might be an authentication issue

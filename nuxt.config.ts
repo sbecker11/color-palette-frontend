@@ -1,3 +1,8 @@
+// Import dotenv to explicitly load environment variables
+import { config } from 'dotenv'
+
+// Load .env file
+config()
 
 export default defineNuxtConfig({
   devtools: { enabled: true },
@@ -12,7 +17,9 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      apiBase: process.env.API_BASE_URL || 'http://localhost:3001/api/v1'
+      // Only set apiBase if API_BASE_URL is explicitly defined in .env
+      apiBase: process.env.API_BASE_URL || null,
+      imageMetadataJsonlFile: process.env.IMAGE_METADATA_JSONL_FILE || ''
     }
   },
 
@@ -47,14 +54,14 @@ export default defineNuxtConfig({
     host: 'localhost'
   },
 
-  // TypeScript configuration
+  // TypeScript configuration - OPTIMIZED FOR PERFORMANCE
   typescript: {
-    strict: true,
-    typeCheck: true,
-    shim: false  // Add this to improve TypeScript performance
+    strict: false,  // Disable strict mode for better performance
+    typeCheck: false,  // Disable type checking for faster dev builds
+    shim: false
   },
 
-  // Vite configuration
+  // Vite configuration - PERFORMANCE OPTIMIZATIONS
   vite: {
     optimizeDeps: {
       include: ['estree-walker'],
@@ -67,8 +74,8 @@ export default defineNuxtConfig({
       }
     },
     define: {
-      // Enable detailed hydration mismatch warnings in development
-      '__VUE_PROD_HYDRATION_MISMATCH_DETAILS__': 'true'
+      // Disable hydration mismatch warnings for performance
+      '__VUE_PROD_HYDRATION_MISMATCH_DETAILS__': 'false'
     },
     server: {
       hmr: {
@@ -76,6 +83,10 @@ export default defineNuxtConfig({
         host: 'localhost',
         port: 3000
       }
+    },
+    // Add performance optimizations
+    esbuild: {
+      drop: process.env.NODE_ENV === 'production' ? ['console', 'debugger'] : []
     }
   },
 

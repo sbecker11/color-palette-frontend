@@ -21,6 +21,10 @@ declare module "nitropack/types" {
     '/api/images/upload': {
       'post': Simplify<Serialize<Awaited<ReturnType<typeof import('../../server/api/images/upload.post').default>>>>
     }
+    '/api/jsonl/metadata': {
+      'get': Simplify<Serialize<Awaited<ReturnType<typeof import('../../server/api/jsonl/metadata.get').default>>>>
+      'default': Simplify<Serialize<Awaited<ReturnType<typeof import('../../server/api/jsonl/metadata').default>>>>
+    }
     '/api/palettes/:id': {
       'delete': Simplify<Serialize<Awaited<ReturnType<typeof import('../../server/api/palettes/[id].delete').default>>>>
       'put': Simplify<Serialize<Awaited<ReturnType<typeof import('../../server/api/palettes/[id].put').default>>>>
