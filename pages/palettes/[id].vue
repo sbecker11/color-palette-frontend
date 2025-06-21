@@ -84,14 +84,15 @@
               class="flex items-center bg-white dark:bg-gray-700 p-3 rounded-md shadow-sm"
             >
               <div 
-                class="w-12 h-12 rounded-md mr-4 shadow-inner cursor-pointer relative"
-                :style="{ backgroundColor: typeof color === 'string' ? color : color.hex, border: (samplingState.selectedColorId === (typeof color === 'object' && color !== null && 'id' in color ? color.id : '')) ? '2px solid #2563eb' : '1px solid #e5e7eb' }"
-                @click="typeof color === 'object' && color !== null && 'id' in color ? toggleColorSelection(color.id) : undefined"
+                class="w-12 h-12 rounded-md mr-4 shadow-inner cursor-pointer relative hover:shadow-lg transition-shadow"
+                :style="{ backgroundColor: typeof color === 'string' ? color : color.hex, border: (samplingState.selectedColorId === (typeof color === 'object' && color !== null && 'id' in color ? color.id : '')) ? '3px solid #374151' : '1px solid #e5e7eb' }"
+                @click="toggleColorSelection(color)"
+                :title="`Click to select this color for editing - ${typeof color === 'string' ? color : color.hex}`"
               >
                 <!-- Interior white border for selected color -->
                 <div 
                   v-if="typeof color === 'object' && color !== null && 'id' in color && samplingState.selectedColorId === color.id" 
-                  class="absolute inset-0 rounded-md border-2 border-blue-500 pointer-events-none"
+                  class="absolute inset-1 rounded-md border-2 border-white pointer-events-none"
                 ></div>
               </div>
               
@@ -112,10 +113,9 @@
               
               <div class="flex space-x-2">
                 <button 
-                  @click="typeof color === 'object' && color !== null ? editColor(color) : undefined" 
-                  class="p-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
+                  @click="editColor(color)" 
+                  class="p-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 rounded"
                   title="Edit color - Open color editor to modify this color's properties"
-                  :disabled="typeof color !== 'object' || color === null"
                 >
                   <span class="sr-only">Edit</span>
                   <!-- Edit icon -->
@@ -125,10 +125,9 @@
                 </button>
                 
                 <button 
-                  @click="typeof color === 'object' && color !== null && 'id' in color ? removeColor(color.id, $event) : undefined" 
-                  class="p-2 text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
-                  title="Remove color"
-                  :disabled="typeof color !== 'object' || color === null"
+                  @click="removeColor(color, $event)" 
+                  class="p-2 text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                  title="Remove color - Delete this color from the palette"
                 >
                   <span class="sr-only">Remove</span>
                   <!-- Trash icon -->
@@ -686,6 +685,7 @@ function goBack(): void {
 const showEditModal = ref(false)
 const colorToEdit = ref<Color | null>(null)
 function editColor(color: Color): void {
+  console.log('🖊️ EDIT COLOR CLICKED! Color:', color)
   colorToEdit.value = color
   showEditModal.value = true
 }
@@ -694,19 +694,34 @@ function closeEditModal() {
   colorToEdit.value = null
 }
 
-function removeColor(colorId: string, event: MouseEvent): void {
-  console.log('removeColor called for colorId:', colorId)
-  colorToDelete.value = colorId
+
+
+function removeColor(color: any, event: MouseEvent): void {
+  // For colors without IDs, use the hex value as identifier
+  const colorId = typeof color === 'object' && color !== null && 'id' in color ? color.id : null
+  const colorHex = typeof color === 'string' ? color : color.hex
+  
+  console.log('🗑️ DELETE COLOR CLICKED! Color:', color, 'ColorId:', colorId, 'Event:', event)
+  
+  // Store both ID and hex for deletion logic
+  colorToDelete.value = colorId || colorHex
   deleteButtonPosition.value = { x: event.clientX, y: event.clientY }
+  
   if (palette.value) {
-    const colorToDelete = palette.value.colorPalette.find(
-      color => typeof color === 'object' && color !== null && 'id' in color && color.id === colorId
-    )
-    if (colorToDelete) {
-      if (typeof colorToDelete === 'object' && colorToDelete !== null) {
-        colorToDeleteData.value = { ...colorToDelete }
+    // Find color by ID first, then by hex value
+    const colorToDeleteItem = palette.value.colorPalette.find(c => {
+      if (colorId) {
+        return typeof c === 'object' && c !== null && 'id' in c && c.id === colorId
       } else {
-        colorToDeleteData.value = { hex: String(colorToDelete) }
+        return (typeof c === 'string' ? c : c.hex) === colorHex
+      }
+    })
+    
+    if (colorToDeleteItem) {
+      if (typeof colorToDeleteItem === 'object' && colorToDeleteItem !== null) {
+        colorToDeleteData.value = { ...colorToDeleteItem }
+      } else {
+        colorToDeleteData.value = { hex: String(colorToDeleteItem) }
       }
     }
   }
@@ -821,10 +836,17 @@ async function confirmDeleteColor(): Promise<void> {
     // Create a copy of the palette
     const updatedPalette = { ...palette.value }
     
-    // Filter out the color to delete
-    updatedPalette.colorPalette = updatedPalette.colorPalette.filter(
-      color => !(typeof color === 'object' && color !== null && 'id' in color && color.id === colorToDelete.value)
-    )
+    // Filter out the color to delete - handle both ID-based and hex-based deletion
+    updatedPalette.colorPalette = updatedPalette.colorPalette.filter(color => {
+      // If colorToDelete is an ID (starts with 'color-'), match by ID
+      if (typeof colorToDelete.value === 'string' && colorToDelete.value.startsWith('color-')) {
+        return !(typeof color === 'object' && color !== null && 'id' in color && color.id === colorToDelete.value)
+      } else {
+        // Otherwise, match by hex value
+        const colorHex = typeof color === 'string' ? color : color.hex
+        return colorHex !== colorToDelete.value
+      }
+    })
     
     // Update local imageData immediately for fast UI updates
     if (imageData.value) {
@@ -1178,12 +1200,56 @@ function getColorAtPosition(): string | null {
 }
 
 // Function to toggle color selection
-function toggleColorSelection(colorId: string): void {
-  console.log('toggleColorSelection called for colorId:', colorId)
-  if (samplingState.value.selectedColorId === colorId) {
-    enterNoneMode();
-  } else {
-    enterEditMode(colorId);
+function toggleColorSelection(color: any): void {
+  // Ensure color has an ID - if not, generate one and update the palette
+  let colorId = typeof color === 'object' && color !== null && 'id' in color ? color.id : null
+  
+  if (!colorId && palette.value) {
+    // Generate ID for color without one
+    colorId = `color-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    
+    // Update the color in the palette to include the ID
+    const updatedPalette = { ...palette.value }
+    const colorIndex = updatedPalette.colorPalette.findIndex(c => 
+      (typeof c === 'string' ? c : c.hex) === (typeof color === 'string' ? color : color.hex)
+    )
+    
+    if (colorIndex !== -1) {
+      const updatedColors = [...updatedPalette.colorPalette]
+      if (typeof updatedColors[colorIndex] === 'string') {
+        // Convert string color to object with ID
+        updatedColors[colorIndex] = {
+          id: colorId,
+          hex: updatedColors[colorIndex] as string,
+          rgb: hexToRgbArray(updatedColors[colorIndex] as string),
+          hsv: rgbToHsv(...hexToRgbArray(updatedColors[colorIndex] as string))
+        }
+      } else {
+        // Add ID to existing color object
+        updatedColors[colorIndex] = { ...updatedColors[colorIndex], id: colorId }
+      }
+      
+      updatedPalette.colorPalette = updatedColors
+      
+      // Update local imageData immediately
+      if (imageData.value) {
+        imageData.value = { ...imageData.value, colorPalette: updatedPalette.colorPalette }
+      }
+      
+      // Update store in background
+      imagesStore.updateImage(String(updatedPalette.id), updatedPalette)
+        .catch(err => console.error('Error updating palette with color ID:', err))
+    }
+  }
+  
+  console.log('🎨 COLOR SWATCH CLICKED! Color:', color, 'ColorId:', colorId)
+  
+  if (colorId) {
+    if (samplingState.value.selectedColorId === colorId) {
+      enterNoneMode();
+    } else {
+      enterEditMode(colorId);
+    }
   }
 }
 
@@ -1390,7 +1456,7 @@ function handleImageClick(e: MouseEvent) {
   }, 100)
 }
 
-// Update handleImageMouseEnter
+// Image event handlers
 function handleImageMouseEnter() {
   if (!isPanModeActive.value && isColorSamplingEnabled.value) {
     showColorSelector.value = true;
@@ -1400,6 +1466,10 @@ function handleImageMouseEnter() {
 function handleImageMouseLeave() {
   showColorSelector.value = false;
 }
+
+
+
+
 
 // Helper function to parse RGB string into array
 function parseRgbString(rgbStr: string): number[] {
@@ -1860,5 +1930,24 @@ function analyzeCornerTestResults() {
 /* Add a global style to reset cursors */
 :deep(*) {
   cursor: inherit;
+}
+
+/* Ensure buttons have proper cursor states */
+button {
+  cursor: pointer !important;
+}
+
+button:disabled {
+  cursor: not-allowed !important;
+}
+
+/* Color swatch hover effects */
+.w-12.h-12.rounded-md.cursor-pointer {
+  cursor: pointer !important;
+}
+
+.w-12.h-12.rounded-md.cursor-pointer:hover {
+  transform: scale(1.05);
+  transition: transform 0.2s ease;
 }
 </style>
